@@ -39,6 +39,7 @@ public class Food {
     private double sodium;          // 나트륨(mg)
     private String foodWeight;      // 식품중량(g)
 
+    private String url;             // 구매 링크 (상품 타입에만 사용)
 
     public enum FoodType {
         DISH,

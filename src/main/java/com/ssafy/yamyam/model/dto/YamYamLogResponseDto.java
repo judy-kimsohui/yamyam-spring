@@ -16,6 +16,7 @@ import lombok.Getter;
 public class YamYamLogResponseDto {
 
     private Long logId;
+    private Long foodId;
     private LocalDate mealDate;
     private MealType mealType;
 
@@ -33,6 +34,7 @@ public class YamYamLogResponseDto {
     public static YamYamLogResponseDto from(YamYamLog log) {
         return YamYamLogResponseDto.builder()
                 .logId(log.getLogId())
+                .foodId(log.getFood().getFoodId())
                 .mealDate(log.getMealDate())
                 .mealType(log.getMealType())
                 .foodName(log.getFood().getFoodName())

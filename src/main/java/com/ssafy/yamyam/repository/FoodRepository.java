@@ -8,7 +8,8 @@ import com.ssafy.yamyam.model.entity.Category;
 import com.ssafy.yamyam.model.entity.Food;
 
 public interface FoodRepository extends JpaRepository<Food, Long> {
-    List<Food> findByFoodNameContaining(String keyword); // 음식 검색용
+    List<Food> findByFoodNameContaining(String keyword);
+    List<Food> findByFoodNameContainingAndFoodType(String keyword, Food.FoodType foodType);
     
     
     // 카테고리로 음식 목록 조회

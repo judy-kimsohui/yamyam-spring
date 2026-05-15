@@ -9,8 +9,8 @@ import com.ssafy.yamyam.model.entity.YamYamLog;
 
 public interface YamYamLogRepository extends JpaRepository<YamYamLog, Long> {
 	// 날짜 범위로 조회 (일주일치)
-    List<YamYamLog> findByUserIdAndMealDateBetween(Long userId, LocalDate start, LocalDate end);
+    List<YamYamLog> findByMember_MemberIdAndMealDateBetween(Long memberId, LocalDate start, LocalDate end);
     
     // 하루치 조회
-    List<YamYamLog> findByUserIdAndMealDate(Long userId, LocalDate mealDate);
+    List<YamYamLog> findByMember_MemberIdAndMealDate(Long memberId, LocalDate mealDate);
 }

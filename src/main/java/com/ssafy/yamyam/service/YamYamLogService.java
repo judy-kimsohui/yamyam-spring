@@ -2,14 +2,18 @@ package com.ssafy.yamyam.service;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.ssafy.yamyam.model.dto.FoodResponseDto;
 import com.ssafy.yamyam.model.dto.YamYamLogRequestDto;
 import com.ssafy.yamyam.model.dto.YamYamLogResponseDto;
-import com.ssafy.yamyam.repository.CategoryRepository;
+import com.ssafy.yamyam.model.entity.Food;
+import com.ssafy.yamyam.model.entity.Member;
+import com.ssafy.yamyam.model.entity.YamYamLog;
 import com.ssafy.yamyam.repository.FoodRepository;
+import com.ssafy.yamyam.repository.MemberRepository;
 import com.ssafy.yamyam.repository.YamYamLogRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -17,45 +21,67 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class YamYamLogService {
+
     private final YamYamLogRepository yamYamLogRepository;
     private final FoodRepository foodRepository;
-    private final CategoryRepository categoryRepository;
-    
-    // 식단 기록
-    public YamYamLogResponseDto save(Long userId, YamYamLogRequestDto dto) { 
-    	return null;
-    }
-    // 하루 조회
-    public List<YamYamLogResponseDto> getDaily(Long userId, LocalDate date) {  
-    	return null;
-    }
-    // 일주일 조회
-    public List<YamYamLogResponseDto> getWeekly(Long userId, LocalDate start) {  
-    	return null;
-    }
-    // 삭제
-    public void delete(Long logId) {  
-    	
-    }
-    
-    
-    // 대분류 목록 조회
-    public List<String> getMainCategories() {
-    	return null;
+    private final MemberRepository memberRepository;
+
+    @Transactional
+    public YamYamLogResponseDto save(Long memberId, YamYamLogRequestDto dto) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+        Food food = foodRepository.findById(dto.getFoodId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 음식입니다."));
+
+        YamYamLog log = YamYamLog.builder()
+                .member(member)
+                .food(food)
+                .mealDate(dto.getMealDate())
+                .mealType(dto.getMealType())
+                .servingSize(dto.getServingSize())
+                .build();
+
+        return YamYamLogResponseDto.from(yamYamLogRepository.save(log));
     }
 
-    // 소분류 목록 조회
-    public List<String> getSubCategories(String mainCategory) {
-    	return null;
+    @Transactional(readOnly = true)
+    public List<YamYamLogResponseDto> getDaily(Long memberId, LocalDate date) {
+        return yamYamLogRepository.findByMember_MemberIdAndMealDate(memberId, date)
+                .stream()
+                .map(YamYamLogResponseDto::from)
+                .collect(Collectors.toList());
     }
 
-    // 카테고리로 음식 목록 조회
-    public List<FoodResponseDto> getFoodsByCategory(String mainCategory, String subCategory) {
-    	return null;
+    @Transactional(readOnly = true)
+    public List<YamYamLogResponseDto> getWeekly(Long memberId, LocalDate start) {
+        return yamYamLogRepository.findByMember_MemberIdAndMealDateBetween(
+                        memberId, start, start.plusDays(6))
+                .stream()
+                .map(YamYamLogResponseDto::from)
+                .collect(Collectors.toList());
     }
 
-    // 음식명 검색
-    public List<FoodResponseDto> searchFood(String keyword) {
-    	return null;
+    @Transactional(readOnly = true)
+    public YamYamLogResponseDto getLog(Long logId) {
+        return yamYamLogRepository.findById(logId)
+                .map(YamYamLogResponseDto::from)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기록입니다."));
+    }
+
+    @Transactional
+    public void update(Long logId, double servingSize) {
+        YamYamLog log = yamYamLogRepository.findById(logId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 기록입니다."));
+        double ratio = servingSize / 100.0;
+        log.setServingSize(servingSize);
+        log.setActualEnergy(log.getFood().getEnergy()   * ratio);
+        log.setActualProtein(log.getFood().getProtein() * ratio);
+        log.setActualFat(log.getFood().getFat()         * ratio);
+        log.setActualCarbs(log.getFood().getCarbs()     * ratio);
+    }
+
+    @Transactional
+    public void delete(Long logId) {
+        yamYamLogRepository.deleteById(logId);
     }
 }

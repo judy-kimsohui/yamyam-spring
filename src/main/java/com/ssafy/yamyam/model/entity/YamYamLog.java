@@ -57,10 +57,11 @@ public class YamYamLog {
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
         if (this.food != null) {
-            this.actualEnergy  = this.food.getEnergy()  * servingSize;
-            this.actualProtein = this.food.getProtein() * servingSize;
-            this.actualFat     = this.food.getFat()     * servingSize;
-            this.actualCarbs   = this.food.getCarbs()   * servingSize;
+            double ratio = this.servingSize / 100.0;
+            this.actualEnergy  = this.food.getEnergy()  * ratio;
+            this.actualProtein = this.food.getProtein() * ratio;
+            this.actualFat     = this.food.getFat()     * ratio;
+            this.actualCarbs   = this.food.getCarbs()   * ratio;
         }
     }
 
