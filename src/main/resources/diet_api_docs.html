@@ -1,0 +1,254 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.wrap { padding: 0; }
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.fchip { font-size: 12px; padding: 5px 12px; border-radius: 99px; cursor: pointer; border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-secondary); transition: all 0.15s; }
+.fchip.on { border-color: transparent; font-weight: 500; }
+.fchip[data-group="auth"].on { background: #EEEDFE; color: #3C3489; }
+.fchip[data-group="users"].on { background: #E6F1FB; color: #0C447C; }
+.fchip[data-group="groups"].on { background: #E1F5EE; color: #085041; }
+.fchip[data-group="meals"].on { background: #FAEEDA; color: #633806; }
+.fchip[data-group="ai"].on { background: #FAECE7; color: #712B13; }
+.fchip[data-group="notifications"].on { background: #FBEAF0; color: #72243E; }
+.fchip[data-group="all"].on { background: var(--color-background-secondary); color: var(--color-text-primary); }
+.section { margin-bottom: 8px; }
+.section-title { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); margin: 14px 0 6px; letter-spacing: 0.05em; }
+.api-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); margin-bottom: 6px; cursor: pointer; transition: background 0.12s; }
+.api-row:hover { background: var(--color-background-secondary); }
+.api-row.open { border-radius: var(--border-radius-md) var(--border-radius-md) 0 0; border-bottom-color: transparent; }
+.method { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 4px; min-width: 48px; text-align: center; flex-shrink: 0; }
+.GET    { background: #E1F5EE; color: #085041; }
+.POST   { background: #E6F1FB; color: #0C447C; }
+.PUT    { background: #FAEEDA; color: #633806; }
+.PATCH  { background: #FAEEDA; color: #633806; }
+.DELETE { background: #FCEBEB; color: #791F1F; }
+.path { font-size: 13px; font-family: var(--font-mono); color: var(--color-text-primary); flex: 1; }
+.path .param { color: #1D9E75; }
+.desc { font-size: 12px; color: var(--color-text-secondary); min-width: 140px; text-align: right; }
+.auth-badge { font-size: 11px; padding: 2px 7px; border-radius: 99px; background: #EEEDFE; color: #3C3489; flex-shrink: 0; }
+.chevron { font-size: 14px; color: var(--color-text-secondary); transition: transform 0.2s; flex-shrink: 0; }
+.chevron.open { transform: rotate(180deg); }
+.detail { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-top: none; border-radius: 0 0 var(--border-radius-md) var(--border-radius-md); padding: 14px 16px; margin-bottom: 6px; display: none; }
+.detail.open { display: block; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.detail-section { font-size: 12px; }
+.detail-label { color: var(--color-text-secondary); margin-bottom: 5px; font-weight: 500; }
+.code-block { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 10px 12px; font-family: var(--font-mono); font-size: 11px; color: var(--color-text-primary); line-height: 1.6; white-space: pre; overflow-x: auto; }
+.tag-key { color: #185FA5; }
+.tag-str { color: #1D9E75; }
+.tag-num { color: #BA7517; }
+.tag-bool { color: #993C1D; }
+.stat-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.stat-badge { font-size: 11px; padding: 3px 9px; border-radius: 99px; border: 0.5px solid var(--color-border-secondary); color: var(--color-text-secondary); }
+</style>
+
+<div class="wrap">
+  <h2 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">다이어트 앱 API 문서</h2>
+
+  <div class="filter-bar">
+    <div class="fchip on" data-group="all" onclick="filter('all')">전체</div>
+    <div class="fchip" data-group="auth" onclick="filter('auth')">인증</div>
+    <div class="fchip" data-group="users" onclick="filter('users')">사용자</div>
+    <div class="fchip" data-group="groups" onclick="filter('groups')">그룹</div>
+    <div class="fchip" data-group="meals" onclick="filter('meals')">식단 기록</div>
+    <div class="fchip" data-group="ai" onclick="filter('ai')">AI 분석</div>
+    <div class="fchip" data-group="notifications" onclick="filter('notifications')">알림</div>
+  </div>
+
+  <div id="api-list"></div>
+</div>
+
+<script>
+const apis = [
+  { group:'auth', method:'POST', path:'/api/auth/register', desc:'회원가입', auth:false,
+    req:`{\n  <span class="tag-key">"username"</span>: <span class="tag-str">"지수"</span>,\n  <span class="tag-key">"email"</span>: <span class="tag-str">"jisu@email.com"</span>,\n  <span class="tag-key">"password"</span>: <span class="tag-str">"••••••••"</span>\n}`,
+    res:`{\n  <span class="tag-key">"userId"</span>: <span class="tag-num">1</span>,\n  <span class="tag-key">"accessToken"</span>: <span class="tag-str">"eyJ..."</span>,\n  <span class="tag-key">"refreshToken"</span>: <span class="tag-str">"eyJ..."</span>\n}`,
+    codes:['201 Created','400 Bad Request','409 Conflict'] },
+
+  { group:'auth', method:'POST', path:'/api/auth/login', desc:'로그인', auth:false,
+    req:`{\n  <span class="tag-key">"email"</span>: <span class="tag-str">"jisu@email.com"</span>,\n  <span class="tag-key">"password"</span>: <span class="tag-str">"••••••••"</span>\n}`,
+    res:`{\n  <span class="tag-key">"accessToken"</span>: <span class="tag-str">"eyJ..."</span>,\n  <span class="tag-key">"refreshToken"</span>: <span class="tag-str">"eyJ..."</span>,\n  <span class="tag-key">"expiresIn"</span>: <span class="tag-num">3600</span>\n}`,
+    codes:['200 OK','401 Unauthorized'] },
+
+  { group:'auth', method:'POST', path:'/api/auth/refresh', desc:'토큰 재발급', auth:false,
+    req:`{\n  <span class="tag-key">"refreshToken"</span>: <span class="tag-str">"eyJ..."</span>\n}`,
+    res:`{\n  <span class="tag-key">"accessToken"</span>: <span class="tag-str">"eyJ..."</span>\n}`,
+    codes:['200 OK','401 Unauthorized'] },
+
+  { group:'auth', method:'POST', path:'/api/auth/logout', desc:'로그아웃', auth:true,
+    req:`{\n  <span class="tag-key">"refreshToken"</span>: <span class="tag-str">"eyJ..."</span>\n}`,
+    res:`{\n  <span class="tag-key">"message"</span>: <span class="tag-str">"로그아웃 완료"</span>\n}`,
+    codes:['200 OK'] },
+
+  { group:'users', method:'GET', path:'/api/users/me', desc:'내 프로필 조회', auth:true,
+    req:`(없음)`,
+    res:`{\n  <span class="tag-key">"id"</span>: <span class="tag-num">1</span>,\n  <span class="tag-key">"username"</span>: <span class="tag-str">"지수"</span>,\n  <span class="tag-key">"email"</span>: <span class="tag-str">"jisu@email.com"</span>,\n  <span class="tag-key">"profileImageUrl"</span>: <span class="tag-str">"https://..."</span>\n}`,
+    codes:['200 OK','401 Unauthorized'] },
+
+  { group:'users', method:'PATCH', path:'/api/users/me', desc:'프로필 수정', auth:true,
+    req:`{\n  <span class="tag-key">"username"</span>: <span class="tag-str">"지수"</span>,\n  <span class="tag-key">"profileImageUrl"</span>: <span class="tag-str">"https://..."</span>\n}`,
+    res:`{\n  <span class="tag-key">"id"</span>: <span class="tag-num">1</span>,\n  <span class="tag-key">"username"</span>: <span class="tag-str">"지수"</span>\n}`,
+    codes:['200 OK','400 Bad Request'] },
+
+  { group:'users', method:'GET', path:'/api/users/me/goals', desc:'내 목표 조회', auth:true,
+    req:`(없음)`,
+    res:`{\n  <span class="tag-key">"targetCalories"</span>: <span class="tag-num">1600</span>,\n  <span class="tag-key">"targetProteinG"</span>: <span class="tag-num">100</span>,\n  <span class="tag-key">"targetCarbG"</span>: <span class="tag-num">200</span>,\n  <span class="tag-key">"targetFatG"</span>: <span class="tag-num">50</span>\n}`,
+    codes:['200 OK'] },
+
+  { group:'users', method:'PUT', path:'/api/users/me/goals', desc:'목표 설정/수정', auth:true,
+    req:`{\n  <span class="tag-key">"targetCalories"</span>: <span class="tag-num">1600</span>,\n  <span class="tag-key">"targetProteinG"</span>: <span class="tag-num">100</span>,\n  <span class="tag-key">"targetCarbG"</span>: <span class="tag-num">200</span>,\n  <span class="tag-key">"targetFatG"</span>: <span class="tag-num">50</span>,\n  <span class="tag-key">"startDate"</span>: <span class="tag-str">"2025-05-01"</span>\n}`,
+    res:`{\n  <span class="tag-key">"id"</span>: <span class="tag-num">1</span>,\n  <span class="tag-key">"message"</span>: <span class="tag-str">"목표 저장 완료"</span>\n}`,
+    codes:['200 OK','400 Bad Request'] },
+
+  { group:'groups', method:'POST', path:'/api/groups', desc:'그룹 만들기', auth:true,
+    req:`{\n  <span class="tag-key">"name"</span>: <span class="tag-str">"건강해지자 팀"</span>\n}`,
+    res:`{\n  <span class="tag-key">"id"</span>: <span class="tag-num">1</span>,\n  <span class="tag-key">"name"</span>: <span class="tag-str">"건강해지자 팀"</span>,\n  <span class="tag-key">"inviteCode"</span>: <span class="tag-str">"ABC123"</span>\n}`,
+    codes:['201 Created','400 Bad Request'] },
+
+  { group:'groups', method:'GET', path:'/api/groups', desc:'내 그룹 목록', auth:true,
+    req:`(없음)`,
+    res:`[\n  {\n    <span class="tag-key">"id"</span>: <span class="tag-num">1</span>,\n    <span class="tag-key">"name"</span>: <span class="tag-str">"건강해지자 팀"</span>,\n    <span class="tag-key">"memberCount"</span>: <span class="tag-num">4</span>,\n    <span class="tag-key">"myRole"</span>: <span class="tag-str">"OWNER"</span>\n  }\n]`,
+    codes:['200 OK'] },
+
+  { group:'groups', method:'POST', path:'/api/groups/join', desc:'초대코드로 참여', auth:true,
+    req:`{\n  <span class="tag-key">"inviteCode"</span>: <span class="tag-str">"ABC123"</span>\n}`,
+    res:`{\n  <span class="tag-key">"groupId"</span>: <span class="tag-num">1</span>,\n  <span class="tag-key">"groupName"</span>: <span class="tag-str">"건강해지자 팀"</span>\n}`,
+    codes:['200 OK','404 Not Found','409 Conflict'] },
+
+  { group:'groups', method:'GET', path:'/api/groups/<span class="param">{groupId}</span>/members', desc:'멤버 목록 + 오늘 현황', auth:true,
+    req:`(없음)`,
+    res:`[\n  {\n    <span class="tag-key">"userId"</span>: <span class="tag-num">1</span>,\n    <span class="tag-key">"username"</span>: <span class="tag-str">"지수"</span>,\n    <span class="tag-key">"todayCalories"</span>: <span class="tag-num">990</span>,\n    <span class="tag-key">"recordCount"</span>: <span class="tag-num">2</span>,\n    <span class="tag-key">"achievementPct"</span>: <span class="tag-num">62</span>\n  }\n]`,
+    codes:['200 OK','403 Forbidden','404 Not Found'] },
+
+  { group:'groups', method:'GET', path:'/api/groups/<span class="param">{groupId}</span>/schedules', desc:'식사 시간표 조회', auth:true,
+    req:`(없음)`,
+    res:`[\n  {\n    <span class="tag-key">"id"</span>: <span class="tag-num">1</span>,\n    <span class="tag-key">"mealType"</span>: <span class="tag-str">"BREAKFAST"</span>,\n    <span class="tag-key">"scheduledTime"</span>: <span class="tag-str">"08:00"</span>,\n    <span class="tag-key">"deadlineMin"</span>: <span class="tag-num">30</span>\n  }\n]`,
+    codes:['200 OK','404 Not Found'] },
+
+  { group:'groups', method:'PUT', path:'/api/groups/<span class="param">{groupId}</span>/schedules', desc:'식사 시간표 설정', auth:true,
+    req:`[\n  {\n    <span class="tag-key">"mealType"</span>: <span class="tag-str">"BREAKFAST"</span>,\n    <span class="tag-key">"scheduledTime"</span>: <span class="tag-str">"08:00"</span>,\n    <span class="tag-key">"deadlineMin"</span>: <span class="tag-num">30</span>\n  }\n]`,
+    res:`{\n  <span class="tag-key">"message"</span>: <span class="tag-str">"시간표 저장 완료"</span>\n}`,
+    codes:['200 OK','403 Forbidden'] },
+
+  { group:'meals', method:'POST', path:'/api/groups/<span class="param">{groupId}</span>/meals', desc:'식단 영상 업로드', auth:true,
+    req:`multipart/form-data\n- video: (영상 파일)\n- mealType: "LUNCH"\n- scheduleId: 2`,
+    res:`{\n  <span class="tag-key">"mealRecordId"</span>: <span class="tag-num">42</span>,\n  <span class="tag-key">"videoUrl"</span>: <span class="tag-str">"https://s3..."</span>,\n  <span class="tag-key">"status"</span>: <span class="tag-str">"ANALYZING"</span>\n}`,
+    codes:['202 Accepted','400 Bad Request','413 Payload Too Large'] },
+
+  { group:'meals', method:'GET', path:'/api/groups/<span class="param">{groupId}</span>/meals', desc:'그룹 피드 조회', auth:true,
+    req:`query: date=2025-05-22\n       userId=1 (선택)`,
+    res:`[\n  {\n    <span class="tag-key">"id"</span>: <span class="tag-num">42</span>,\n    <span class="tag-key">"userId"</span>: <span class="tag-num">1</span>,\n    <span class="tag-key">"mealType"</span>: <span class="tag-str">"LUNCH"</span>,\n    <span class="tag-key">"videoUrl"</span>: <span class="tag-str">"https://s3..."</span>,\n    <span class="tag-key">"totalCalories"</span>: <span class="tag-num">520</span>,\n    <span class="tag-key">"aiComment"</span>: <span class="tag-str">"나트륨 주의"</span>\n  }\n]`,
+    codes:['200 OK','403 Forbidden'] },
+
+  { group:'meals', method:'GET', path:'/api/meals/<span class="param">{mealId}</span>', desc:'식단 기록 상세', auth:true,
+    req:`(없음)`,
+    res:`{\n  <span class="tag-key">"id"</span>: <span class="tag-num">42</span>,\n  <span class="tag-key">"recognizedFoods"</span>: [\n    { <span class="tag-key">"name"</span>: <span class="tag-str">"잡곡밥"</span>, <span class="tag-key">"calories"</span>: <span class="tag-num">280</span> }\n  ],\n  <span class="tag-key">"nutrients"</span>: {\n    <span class="tag-key">"proteinG"</span>: <span class="tag-num">18</span>,\n    <span class="tag-key">"carbG"</span>: <span class="tag-num">74</span>,\n    <span class="tag-key">"fatG"</span>: <span class="tag-num">9</span>,\n    <span class="tag-key">"sodiumMg"</span>: <span class="tag-num">820</span>\n  }\n}`,
+    codes:['200 OK','404 Not Found'] },
+
+  { group:'meals', method:'POST', path:'/api/meals/<span class="param">{mealId}</span>/reactions', desc:'리액션 추가', auth:true,
+    req:`{\n  <span class="tag-key">"emoji"</span>: <span class="tag-str">"👍"</span>\n}`,
+    res:`{\n  <span class="tag-key">"id"</span>: <span class="tag-num">7</span>,\n  <span class="tag-key">"emoji"</span>: <span class="tag-str">"👍"</span>\n}`,
+    codes:['201 Created','404 Not Found'] },
+
+  { group:'meals', method:'GET', path:'/api/users/me/meals/calendar', desc:'캘린더용 월별 기록', auth:true,
+    req:`query: year=2025&month=11`,
+    res:`{\n  <span class="tag-key">"2025-11-01"</span>: {\n    <span class="tag-key">"moodEmoji"</span>: <span class="tag-str">"😊"</span>,\n    <span class="tag-key">"totalCalories"</span>: <span class="tag-num">1480</span>,\n    <span class="tag-key">"achievementPct"</span>: <span class="tag-num">92</span>\n  }\n}`,
+    codes:['200 OK'] },
+
+  { group:'ai', method:'POST', path:'/api/meals/<span class="param">{mealId}</span>/analyze', desc:'AI 식단 분석 요청', auth:true,
+    req:`(없음 — 업로드된 영상 자동 분석)`,
+    res:`{\n  <span class="tag-key">"status"</span>: <span class="tag-str">"ANALYZING"</span>,\n  <span class="tag-key">"estimatedSec"</span>: <span class="tag-num">5</span>\n}`,
+    codes:['202 Accepted','404 Not Found'] },
+
+  { group:'ai', method:'GET', path:'/api/meals/<span class="param">{mealId}</span>/analyze/result', desc:'분석 결과 폴링', auth:true,
+    req:`(없음)`,
+    res:`{\n  <span class="tag-key">"status"</span>: <span class="tag-str">"DONE"</span>,\n  <span class="tag-key">"recognizedFoods"</span>: [<span class="tag-str">"된장찌개"</span>, <span class="tag-str">"잡곡밥"</span>],\n  <span class="tag-key">"totalCalories"</span>: <span class="tag-num">520</span>,\n  <span class="tag-key">"aiComment"</span>: <span class="tag-str">"나트륨이 높아요..."</span>\n}`,
+    codes:['200 OK','202 Still Processing'] },
+
+  { group:'ai', method:'POST', path:'/api/users/me/ai/recommend', desc:'다음 식사 AI 추천', auth:true,
+    req:`{\n  <span class="tag-key">"mealType"</span>: <span class="tag-str">"DINNER"</span>\n}`,
+    res:`{\n  <span class="tag-key">"recommendation"</span>: <span class="tag-str">"오늘 단백질이 부족해요. 닭가슴살..."</span>,\n  <span class="tag-key">"suggestedFoods"</span>: [<span class="tag-str">"닭가슴살"</span>, <span class="tag-str">"두부"</span>]\n}`,
+    codes:['200 OK'] },
+
+  { group:'ai', method:'POST', path:'/api/users/me/ai/chat', desc:'AI 코치 대화', auth:true,
+    req:`{\n  <span class="tag-key">"message"</span>: <span class="tag-str">"저녁 뭐 먹을까요?"</span>,\n  <span class="tag-key">"groupId"</span>: <span class="tag-num">1</span>\n}`,
+    res:`{\n  <span class="tag-key">"reply"</span>: <span class="tag-str">"오늘 단백질이 44g이니..."</span>\n}`,
+    codes:['200 OK'] },
+
+  { group:'notifications', method:'GET', path:'/api/users/me/notifications', desc:'알림 목록', auth:true,
+    req:`query: page=0&size=20`,
+    res:`[\n  {\n    <span class="tag-key">"id"</span>: <span class="tag-num">1</span>,\n    <span class="tag-key">"type"</span>: <span class="tag-str">"MEAL_TIME"</span>,\n    <span class="tag-key">"message"</span>: <span class="tag-str">"점심 시간이에요!"</span>,\n    <span class="tag-key">"isRead"</span>: <span class="tag-bool">false</span>\n  }\n]`,
+    codes:['200 OK'] },
+
+  { group:'notifications', method:'PATCH', path:'/api/users/me/notifications/<span class="param">{id}</span>/read', desc:'알림 읽음 처리', auth:true,
+    req:`(없음)`,
+    res:`{\n  <span class="tag-key">"id"</span>: <span class="tag-num">1</span>,\n  <span class="tag-key">"isRead"</span>: <span class="tag-bool">true</span>\n}`,
+    codes:['200 OK','404 Not Found'] },
+
+  { group:'notifications', method:'POST', path:'/api/groups/<span class="param">{groupId}</span>/nudge', desc:'멤버에게 독촉 알림', auth:true,
+    req:`{\n  <span class="tag-key">"targetUserId"</span>: <span class="tag-num">4</span>\n}`,
+    res:`{\n  <span class="tag-key">"message"</span>: <span class="tag-str">"알림을 보냈어요"</span>\n}`,
+    codes:['200 OK','429 Too Many Requests'] },
+];
+
+const groupLabels = {
+  auth:'인증', users:'사용자', groups:'그룹', meals:'식단 기록', ai:'AI 분석', notifications:'알림'
+};
+let current = 'all';
+let openIdx = null;
+
+function filter(g) {
+  current = g;
+  document.querySelectorAll('.fchip').forEach(c => c.classList.toggle('on', c.dataset.group === g));
+  openIdx = null;
+  render();
+}
+
+function toggle(idx) {
+  openIdx = openIdx === idx ? null : idx;
+  render();
+}
+
+function render() {
+  const filtered = apis.map((a,i) => ({...a, idx:i})).filter(a => current === 'all' || a.group === current);
+  const byGroup = {};
+  filtered.forEach(a => { if (!byGroup[a.group]) byGroup[a.group] = []; byGroup[a.group].push(a); });
+
+  let html = '';
+  for (const [g, items] of Object.entries(byGroup)) {
+    if (current === 'all') html += `<div class="section-title">${groupLabels[g]}</div>`;
+    items.forEach(a => {
+      const isOpen = openIdx === a.idx;
+      html += `<div class="api-row${isOpen?' open':''}" onclick="toggle(${a.idx})">
+        <span class="method ${a.method}">${a.method}</span>
+        <span class="path">${a.path}</span>
+        <span class="desc">${a.desc}</span>
+        ${a.auth ? '<span class="auth-badge">JWT</span>' : ''}
+        <i class="ti ti-chevron-down chevron${isOpen?' open':''}" aria-hidden="true"></i>
+      </div>`;
+      if (isOpen) {
+        html += `<div class="detail open">
+          <div class="detail-grid">
+            <div class="detail-section">
+              <div class="detail-label">Request</div>
+              <div class="code-block">${a.req}</div>
+            </div>
+            <div class="detail-section">
+              <div class="detail-label">Response</div>
+              <div class="code-block">${a.res}</div>
+            </div>
+          </div>
+          <div class="stat-row">
+            ${a.codes.map(c => `<span class="stat-badge">${c}</span>`).join('')}
+          </div>
+        </div>`;
+      }
+    });
+  }
+  document.getElementById('api-list').innerHTML = html;
+}
+
+render();
+</script>

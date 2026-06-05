@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.yamyam.domain.team.mapper.TeamMapper">
+
+    <resultMap id="TeamDetailResultMap" type="com.ssafy.yamyam.domain.team.dto.TeamDetailResponse">
+        
+        <association property="teamInfo" javaType="com.ssafy.yamyam.domain.team.model.Team">
+            <id property="id" column="team_pk_id"/>
+            <result property="teamId" column="team_id"/>
+            <result property="teamName" column="team_name"/>
+            <result property="capacity" column="capacity"/>
+            <result property="inviteCode" column="invite_code"/>
+            <result property="teamGoal" column="team_goal"/>
+            <result property="kingId" column="king_id"/>
+            <result property="createdAt" column="team_created_at"/>
+            <result property="updatedAt" column="team_updated_at"/>
+        </association>
+
+        <association property="teamKing" javaType="com.ssafy.yamyam.domain.user.model.User">
+            <id property="id" column="king_pk_id"/>
+            <result property="userId" column="king_user_id"/>
+            <result property="nickName" column="king_nickname"/>
+            <result property="profileImg" column="king_profile_img"/>
+        </association>
+
+        <collection property="members" ofType="com.ssafy.yamyam.domain.user.model.User">
+            <id property="id" column="member_pk_id"/>
+            <result property="userId" column="member_user_id"/>
+            <result property="nickName" column="member_nickname"/>
+            <result property="profileImg" column="member_profile_img"/>
+        </collection>
+    </resultMap>
+
+    <select id="findTeamDetailById" resultMap="TeamDetailResultMap">
+        SELECT 
+            t.id AS team_pk_id, t.team_id, t.team_name, t.capacity, t.invite_code, t.team_goal, t.king_id,
+            t.created_at AS team_created_at, t.updated_at AS team_updated_at,
+            
+            k.id AS king_pk_id, k.user_id AS king_user_id, k.nick_name AS king_nickname, k.profile_img AS king_profile_img,
+            
+            m.id AS member_pk_id, m.user_id AS member_user_id, m.nick_name AS member_nickname, m.profile_img AS member_profile_img
+        FROM TEAMS t
+        JOIN USERS k ON t.king_id = k.id
+        LEFT JOIN TEAM_MEMBERS tm ON t.id = tm.team_id
+        LEFT JOIN USERS m ON tm.user_id = m.id
+        WHERE t.id = #{id}
+    </select>
+
+</mapper>
