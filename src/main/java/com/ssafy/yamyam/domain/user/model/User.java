@@ -52,7 +52,7 @@ public class User {
 	//수정 일자
 	private LocalDateTime updatedAt;
 	
-	private enum Gender{
+	public enum Gender{
 		MALE, FEMALE, NONE
 	}
 	

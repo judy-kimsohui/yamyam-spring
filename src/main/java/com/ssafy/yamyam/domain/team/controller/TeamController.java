@@ -19,7 +19,7 @@ public class TeamController {
         this.teamService = teamService;
     }
 
-    // GET http://localhost:8080/api/teams/1
+        // GET http://localhost:8080/api/teams/1
     @GetMapping("/{id}")
     public ResponseEntity<TeamDetailResponseDto> getTeamDetail(@PathVariable("id") Long id) {
         TeamDetailResponseDto teamDetail = teamService.getTeamDetail(id);

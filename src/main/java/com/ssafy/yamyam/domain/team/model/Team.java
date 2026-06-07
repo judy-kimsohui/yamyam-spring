@@ -4,7 +4,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.ssafy.yamyam.domain.user.model.User;
+import lombok.Data;
 
+@Data
 public class Team {
 
 	

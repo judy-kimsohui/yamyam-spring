@@ -4,8 +4,10 @@
 
 <mapper namespace="com.ssafy.yamyam.domain.team.mapper.TeamMapper">
 
-    <resultMap id="TeamDetailResultMap" type="com.ssafy.yamyam.domain.team.dto.TeamDetailResponse">
-        
+    <resultMap id="TeamDetailResultMap" type="com.ssafy.yamyam.domain.team.dto.TeamDetailResponseDto">
+
+        <id property="teamInfo.id" column="team_pk_id"/>
+
         <association property="teamInfo" javaType="com.ssafy.yamyam.domain.team.model.Team">
             <id property="id" column="team_pk_id"/>
             <result property="teamId" column="team_id"/>
@@ -34,13 +36,13 @@
     </resultMap>
 
     <select id="findTeamDetailById" resultMap="TeamDetailResultMap">
-        SELECT 
-            t.id AS team_pk_id, t.team_id, t.team_name, t.capacity, t.invite_code, t.team_goal, t.king_id,
-            t.created_at AS team_created_at, t.updated_at AS team_updated_at,
-            
-            k.id AS king_pk_id, k.user_id AS king_user_id, k.nick_name AS king_nickname, k.profile_img AS king_profile_img,
-            
-            m.id AS member_pk_id, m.user_id AS member_user_id, m.nick_name AS member_nickname, m.profile_img AS member_profile_img
+        SELECT
+        t.id AS team_pk_id, t.team_id, t.team_name, t.capacity, t.invite_code, t.team_goal, t.king_id,
+        t.created_at AS team_created_at, t.updated_at AS team_updated_at,
+
+        k.id AS king_pk_id, k.user_id AS king_user_id, k.nick_name AS king_nickname, k.profile_img AS king_profile_img,
+
+        m.id AS member_pk_id, m.user_id AS member_user_id, m.nick_name AS member_nickname, m.profile_img AS member_profile_img
         FROM TEAMS t
         JOIN USERS k ON t.king_id = k.id
         LEFT JOIN TEAM_MEMBERS tm ON t.id = tm.team_id
