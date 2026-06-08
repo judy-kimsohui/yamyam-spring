@@ -12,7 +12,7 @@ import com.ssafy.yamyam.domain.user.service.UserService;
 
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "http://localhost:5174", allowCredentials = "true")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"}, allowCredentials = "true")
 public class UserController {
 
     private final UserService userService;

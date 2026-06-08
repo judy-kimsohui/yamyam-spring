@@ -42,6 +42,8 @@ CREATE TABLE TEAM_MEMBERS (
 );
 
 
+ALTER TABLE USERS ADD COLUMN user_goal VARCHAR(255) AFTER goal_weight;
+
 
 -- 4. 유저 무게 기록 테이블 (💡 FK 연동 구조를 BIGINT id로 안전하게 수정)
 CREATE TABLE WEIGHT_HISTORY (
@@ -54,14 +56,17 @@ CREATE TABLE WEIGHT_HISTORY (
     CONSTRAINT fk_history_user FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE
 );
 
--- 5. 동영상 업로드 관리 테이블 (💡 대시보드 기획 연동을 위해 신규 추가)
+-- 5. 동영상 업로드 관리 테이블
 CREATE TABLE VIDEOS (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,                      -- 영상을 업로드한 유저
     team_id BIGINT NOT NULL,                      -- 영상을 공유한 대상 팀
-    video_url VARCHAR(512) NOT NULL,              -- S3 등의 파일 저장 경로 파일명
-    description VARCHAR(500),                     -- 영상 내용 설명 (선택)
+    meal_type VARCHAR(20) NOT NULL DEFAULT 'LUNCH', -- BREAKFAST, LUNCH, DINNER
+    meal_date DATE NOT NULL,                      -- 해당 식사 날짜
+    video_url VARCHAR(512) NOT NULL,              -- 로컬 파일 서빙 경로
+    description VARCHAR(500),                     -- 영상 설명 (선택)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
-    FOREIGN KEY (team_id) REFERENCES TEAMS(id) ON DELETE CASCADE
+    FOREIGN KEY (team_id) REFERENCES TEAMS(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_user_team_meal (user_id, team_id, meal_type, meal_date)
 );

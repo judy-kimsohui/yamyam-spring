@@ -55,7 +55,7 @@
         SELECT
         t.id AS id,
         t.team_id AS teamId,
-        t.team_name AS teamName,
+        t.team_name AS name,
         t.capacity AS capacity,
         t.team_goal AS teamGoal,
         -- 💡 필요하다면 현재 팀에 몇 명이 참여 중인지 서브쿼리로 동적 연산
