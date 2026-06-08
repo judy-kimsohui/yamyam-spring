@@ -40,3 +40,28 @@ CREATE TABLE TEAM_MEMBERS (
     FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
     UNIQUE KEY unique_user_group (team_id, user_id) -- 중복 가입 방지
 );
+
+
+
+-- 4. 유저 무게 기록 테이블 (💡 FK 연동 구조를 BIGINT id로 안전하게 수정)
+CREATE TABLE WEIGHT_HISTORY (
+    history_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,                      -- 💡 USERS(id)와 매칭되도록 BIGINT로 변경
+    recorded_weight DOUBLE NOT NULL,
+    recorded_date DATE DEFAULT (CURRENT_DATE),
+
+    CONSTRAINT uq_user_date UNIQUE (user_id, recorded_date),
+    CONSTRAINT fk_history_user FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE
+);
+
+-- 5. 동영상 업로드 관리 테이블 (💡 대시보드 기획 연동을 위해 신규 추가)
+CREATE TABLE VIDEOS (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,                      -- 영상을 업로드한 유저
+    team_id BIGINT NOT NULL,                      -- 영상을 공유한 대상 팀
+    video_url VARCHAR(512) NOT NULL,              -- S3 등의 파일 저장 경로 파일명
+    description VARCHAR(500),                     -- 영상 내용 설명 (선택)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE,
+    FOREIGN KEY (team_id) REFERENCES TEAMS(id) ON DELETE CASCADE
+);

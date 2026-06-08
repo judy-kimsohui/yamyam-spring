@@ -2,6 +2,7 @@ package com.ssafy.yamyam.domain.user.service;
 
 
 import com.ssafy.yamyam.domain.user.dto.SignupRequestDto;
+import com.ssafy.yamyam.domain.user.dto.UserDto;
 import com.ssafy.yamyam.domain.user.dto.UserUpdateRequestDto;
 import com.ssafy.yamyam.domain.user.mapper.UserMapper;
 import com.ssafy.yamyam.domain.user.model.User;
@@ -115,4 +116,22 @@ public class UserService {
 
     }
 
+    public UserDto findUserById(Long loginUserKey) {
+        User user = userMapper.findById(loginUserKey);
+        if (user == null) return null;
+
+        UserDto dto = new UserDto();
+        dto.setId(user.getId());
+        dto.setUser_id(user.getUserId());
+        dto.setNick_name(user.getNickName());
+        dto.setProfile_img(user.getProfileImg());
+        dto.setAge(user.getAge());
+        dto.setGender(user.getGender() != null ? user.getGender().name() : null);
+        dto.setHeight(user.getHeight());
+        dto.setWeight(user.getWeight());
+        dto.setGoal_weight(user.getGoalWeight());
+        dto.setUser_goal("");
+
+        return dto;
+    }
 }

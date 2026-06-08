@@ -50,4 +50,18 @@
         WHERE t.id = #{id}
     </select>
 
+
+    <select id="findTeamsByUserId" parameterType="long" resultType="com.ssafy.yamyam.domain.team.dto.TeamDto">
+        SELECT
+        t.id AS id,
+        t.team_id AS teamId,
+        t.team_name AS teamName,
+        t.capacity AS capacity,
+        t.team_goal AS teamGoal,
+        -- 💡 필요하다면 현재 팀에 몇 명이 참여 중인지 서브쿼리로 동적 연산
+        (SELECT COUNT(*) FROM TEAM_MEMBERS tm2 WHERE tm2.team_id = t.id) AS members
+        FROM TEAMS t
+        INNER JOIN TEAM_MEMBERS tm ON t.id = tm.team_id
+        WHERE tm.user_id = #{userId}
+    </select>
 </mapper>
