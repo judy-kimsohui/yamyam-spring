@@ -21,7 +21,7 @@ public class VideoService {
 
     private final VideoMapper videoMapper;
 
-    @Value("${spring.servlet.multipart.location}")
+    @Value("${yamyam.video.upload-dir}")
     private String uploadDir;
 
     @Transactional
@@ -34,7 +34,7 @@ public class VideoService {
         video.setTeamId(teamId);
         video.setMealType(mealType.toUpperCase());
         video.setMealDate(LocalDate.parse(mealDate));
-        video.setVideoUrl("/api/videos/file/" + savedFilename);
+        video.setVideoUrl("/videos/" + savedFilename);
         video.setDescription(description);
 
         videoMapper.insertVideo(video);
@@ -50,7 +50,7 @@ public class VideoService {
     }
 
     private String saveVideoFile(MultipartFile file) {
-        File folder = new File(uploadDir + "/videos");
+        File folder = new File(uploadDir);
         if (!folder.exists()) folder.mkdirs();
 
         String original = file.getOriginalFilename();

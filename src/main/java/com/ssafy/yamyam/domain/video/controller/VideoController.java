@@ -4,16 +4,10 @@ import com.ssafy.yamyam.domain.video.dto.VideoDto;
 import com.ssafy.yamyam.domain.video.service.VideoService;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -24,9 +18,6 @@ import java.util.List;
 public class VideoController {
 
     private final VideoService videoService;
-
-    @Value("${spring.servlet.multipart.location}")
-    private String uploadDir;
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadVideo(
@@ -58,17 +49,5 @@ public class VideoController {
         return ResponseEntity.ok(videoService.getTeamVideos(teamId, date));
     }
 
-    @GetMapping("/file/{filename}")
-    public ResponseEntity<Resource> serveVideo(@PathVariable String filename) {
-        File file = new File(uploadDir + "/videos/" + filename);
-        if (!file.exists()) {
-            return ResponseEntity.notFound().build();
-        }
-        String contentType = filename.endsWith(".webm") ? "video/webm" : "video/mp4";
-        Resource resource = new FileSystemResource(file);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                .contentType(MediaType.parseMediaType(contentType))
-                .body(resource);
-    }
+
 }
