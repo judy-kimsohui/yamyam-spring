@@ -2,6 +2,7 @@ package com.ssafy.yamyam.domain.video.controller;
 
 import com.ssafy.yamyam.domain.video.dto.VideoDto;
 import com.ssafy.yamyam.domain.video.service.VideoService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/videos")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"}, allowCredentials = "true")
+//@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"}, allowCredentials = "true")
 @RequiredArgsConstructor
 public class VideoController {
 
@@ -26,12 +27,9 @@ public class VideoController {
             @RequestParam("mealDate") String mealDate,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam("videoFile") MultipartFile videoFile,
-            HttpSession session) {
+            HttpServletRequest request) { // 💡 HttpSession -> HttpServletRequest 변경
 
-        Long loginUserKey = (Long) session.getAttribute("loginUserKey");
-        if (loginUserKey == null) {
-            return ResponseEntity.status(401).body("로그인이 필요합니다.");
-        }
+        Long loginUserKey = (Long) request.getAttribute("loginUserKey");
 
         try {
             VideoDto result = videoService.uploadVideo(loginUserKey, teamId, mealType, mealDate, description, videoFile);

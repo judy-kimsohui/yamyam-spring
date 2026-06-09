@@ -15,5 +15,4 @@ public class UserDto {
     private double weight;
     private double goal_weight;
     private String user_goal;
-	
 }

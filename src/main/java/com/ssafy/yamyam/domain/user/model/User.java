@@ -43,7 +43,7 @@ public class User {
 	//현재 속해있는 그룹 리스트
 	//private List<Group> myGroups;
 	/////////////////////////////////////////////////
-	
+	private String userGoal;
 	
 	
 	//가입 일자

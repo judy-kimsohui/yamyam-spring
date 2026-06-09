@@ -4,8 +4,8 @@
 <mapper namespace="com.ssafy.yamyam.domain.user.mapper.UserMapper">
 
     <insert id="insertUser" parameterType="com.ssafy.yamyam.domain.user.model.User" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO USERS (user_id, password, nick_name, profile_img, age, gender, height, weight, goal_weight)
-        VALUES (#{userId}, #{password}, #{nickName}, #{profileImg}, #{age}, #{gender}, #{height}, #{weight}, #{goalWeight})
+        INSERT INTO USERS (user_id, password, nick_name, profile_img, age, gender, height, weight, goal_weight, user_goal)
+        VALUES (#{userId}, #{password}, #{nickName}, #{profileImg}, #{age}, #{gender}, #{height}, #{weight}, #{goalWeight}, #{userGoal})
     </insert>
 
     <update id="updateUserProfile" parameterType="com.ssafy.yamyam.domain.user.model.User">
@@ -14,10 +14,11 @@
         nick_name = #{nickName},
         profile_img = #{profileImg},
         age = #{age},
-        gender = #{gender},  height = #{height},
+        gender = #{gender},
+        height = #{height},
         weight = #{weight},
-        goal_weight = #{goalWeight}
-        WHERE id = #{id}
+        goal_weight = #{goalWeight},
+        user_goal = #{userGoal}  WHERE id = #{id}
     </update>
 
     <resultMap id="UserResultMap" type="com.ssafy.yamyam.domain.user.model.User">
@@ -31,6 +32,7 @@
         <result property="height" column="height"/>
         <result property="weight" column="weight"/>
         <result property="goalWeight" column="goal_weight"/>
+        <result property="userGoal" column="user_goal"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
     </resultMap>
