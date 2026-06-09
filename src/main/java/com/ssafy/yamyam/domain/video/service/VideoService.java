@@ -50,8 +50,15 @@ public class VideoService {
     }
 
     private String saveVideoFile(MultipartFile file) {
-        File folder = new File(uploadDir);
-        if (!folder.exists()) folder.mkdirs();
+        String projectRootPath = System.getProperty("user.dir");
+
+        // 2. 💡 루트 경로와 Properties의 꼬리 경로(src/main/resources/static/videos)를 안전하게 결합합니다.
+        File folder = new File(projectRootPath, uploadDir);
+
+        // 3. 만약 해당 폴더가 내 컴퓨터나 팀원 컴퓨터에 없다면 자동으로 생성해 줍니다.
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
 
         String original = file.getOriginalFilename();
         String ext = (original != null && original.contains("."))
@@ -60,6 +67,7 @@ public class VideoService {
         String filename = UUID.randomUUID().toString() + ext;
 
         try {
+            // 4. 동적으로 완벽하게 매핑된 각자의 프로젝트 static 폴더 안으로 파일 전송
             file.transferTo(new File(folder, filename));
             return filename;
         } catch (IOException e) {
