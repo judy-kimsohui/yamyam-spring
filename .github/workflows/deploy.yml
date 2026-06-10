@@ -29,40 +29,27 @@ jobs:
         run: |
           echo "$SSH_KEY" > key.pem
           chmod 600 key.pem
+          SSH="ssh -i key.pem -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10"
+          SCP="scp -i key.pem -o StrictHostKeyChecking=no"
 
-          # 디렉토리 생성
-          ssh -i key.pem -o StrictHostKeyChecking=no ubuntu@$HOST \
-            'mkdir -p /home/ubuntu/app/logs /home/ubuntu/uploads/videos'
+          # 1) 디렉토리 생성
+          $SSH ubuntu@$HOST 'mkdir -p /home/ubuntu/app/logs /home/ubuntu/uploads/videos'
 
-          # JAR + docker-compose 전송
-          scp -i key.pem -o StrictHostKeyChecking=no \
-            target/yumyum-backend-0.0.1-SNAPSHOT.jar \
-            ubuntu@$HOST:/home/ubuntu/app/app.jar
+          # 2) 파일 전송
+          $SCP target/yumyum-backend-0.0.1-SNAPSHOT.jar ubuntu@$HOST:/home/ubuntu/app/app.jar
+          $SCP docker-compose.yml ubuntu@$HOST:/home/ubuntu/app/docker-compose.yml
 
-          scp -i key.pem -o StrictHostKeyChecking=no \
-            docker-compose.yml \
-            ubuntu@$HOST:/home/ubuntu/app/docker-compose.yml
+          # 3) DB 컨테이너 기동 (이미지 pull 포함, 오래 걸릴 수 있음)
+          $SSH ubuntu@$HOST 'cd /home/ubuntu/app && docker compose pull --quiet && docker compose up -d'
 
-          # DB 기동 + 앱 재시작
-          ssh -i key.pem -o StrictHostKeyChecking=no ubuntu@$HOST '
-            cd /home/ubuntu/app
+          # 4) 기존 앱 프로세스 종료
+          $SSH ubuntu@$HOST 'pkill -f "app.jar" 2>/dev/null || true'
 
-            # DB 컨테이너 시작 (이미 실행 중이면 무시)
-            docker compose up -d
-            sleep 5
+          # 5) 앱 시작
+          $SSH ubuntu@$HOST 'nohup java -Dspring.profiles.active=prod -Xmx512m -jar /home/ubuntu/app/app.jar > /home/ubuntu/app/logs/app.log 2>&1 &'
 
-            # 기존 프로세스 종료
-            pkill -f "app.jar" 2>/dev/null || true
-            sleep 2
-
-            # 앱 시작
-            nohup java \
-              -Dspring.profiles.active=prod \
-              -Xmx512m \
-              -jar /home/ubuntu/app/app.jar \
-              > /home/ubuntu/app/logs/app.log 2>&1 &
-
-            echo "✅ Backend deployed at $(date)"
-          '
+          # 6) 기동 확인 (10초 대기 후 프로세스 확인)
+          sleep 10
+          $SSH ubuntu@$HOST 'pgrep -f "app.jar" && echo "✅ Backend is running" || echo "❌ Backend failed to start"'
 
           rm -f key.pem
