@@ -1,0 +1,68 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [ publish ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build JAR (skip tests)
+        run: mvn clean package -DskipTests
+
+      - name: Deploy to EC2
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          echo "$SSH_KEY" > key.pem
+          chmod 600 key.pem
+
+          # 디렉토리 생성
+          ssh -i key.pem -o StrictHostKeyChecking=no ubuntu@$HOST \
+            'mkdir -p /home/ubuntu/app/logs /home/ubuntu/uploads/videos'
+
+          # JAR + docker-compose 전송
+          scp -i key.pem -o StrictHostKeyChecking=no \
+            target/yumyum-backend-0.0.1-SNAPSHOT.jar \
+            ubuntu@$HOST:/home/ubuntu/app/app.jar
+
+          scp -i key.pem -o StrictHostKeyChecking=no \
+            docker-compose.yml \
+            ubuntu@$HOST:/home/ubuntu/app/docker-compose.yml
+
+          # DB 기동 + 앱 재시작
+          ssh -i key.pem -o StrictHostKeyChecking=no ubuntu@$HOST '
+            cd /home/ubuntu/app
+
+            # DB 컨테이너 시작 (이미 실행 중이면 무시)
+            docker compose up -d
+            sleep 5
+
+            # 기존 프로세스 종료
+            pkill -f "app.jar" 2>/dev/null || true
+            sleep 2
+
+            # 앱 시작
+            nohup java \
+              -Dspring.profiles.active=prod \
+              -Xmx512m \
+              -jar /home/ubuntu/app/app.jar \
+              > /home/ubuntu/app/logs/app.log 2>&1 &
+
+            echo "✅ Backend deployed at $(date)"
+          '
+
+          rm -f key.pem
