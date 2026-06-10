@@ -30,13 +30,13 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 );
     }
 
-    // CORS 전역 설정 (기존 코드)
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("*")
+                .allowedOriginPatterns("*")
                 .allowedMethods("*")
-                .allowedHeaders("*");
+                .allowedHeaders("*")
+                .allowCredentials(true);
     }
 
     // 인터셉터 적용 경로 설정 (새로 추가!)

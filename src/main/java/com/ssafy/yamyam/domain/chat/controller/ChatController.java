@@ -40,7 +40,6 @@ public class ChatController {
     // ── REST: 최근 메시지 히스토리 조회 ──
     @GetMapping("/api/chat/{teamId}/messages")
     @ResponseBody
-    @CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"}, allowCredentials = "true")
     public ResponseEntity<List<ChatMessageDto>> getHistory(@PathVariable Long teamId) {
         return ResponseEntity.ok(chatService.getHistory(teamId));
     }
