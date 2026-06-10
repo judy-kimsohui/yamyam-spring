@@ -26,6 +26,9 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           HOST: ${{ secrets.EC2_HOST }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
         run: |
           echo "$SSH_KEY" > key.pem
           chmod 600 key.pem
@@ -35,7 +38,7 @@ jobs:
           cat > run-deploy.sh << 'SCRIPT'
           #!/bin/bash
           set -e
-          mkdir -p /home/ubuntu/app/logs /home/ubuntu/uploads/videos
+          mkdir -p /home/ubuntu/app/logs /home/ubuntu/uploads
           cd /home/ubuntu/app
           echo "[1] DB 기동..."
           docker compose up -d
@@ -43,10 +46,11 @@ jobs:
           pkill -f "app.jar" 2>/dev/null || true
           sleep 2
           echo "[3] 앱 시작..."
+          source /home/ubuntu/app/.env
           nohup java -Dspring.profiles.active=prod -Xmx512m \
             -jar /home/ubuntu/app/app.jar \
             > /home/ubuntu/app/logs/app.log 2>&1 &
-          sleep 8
+          sleep 10
           if pgrep -f "app.jar" > /dev/null; then
             echo "✅ Backend is running (PID: $(pgrep -f app.jar))"
           else
@@ -56,14 +60,22 @@ jobs:
           fi
           SCRIPT
 
-          # 파일 전송 (한 번에)
+          # AWS 환경변수를 EC2에 .env 파일로 저장 (git에 커밋되지 않음)
+          ssh -i key.pem $OPT ubuntu@$HOST "cat > /home/ubuntu/app/.env << 'ENVEOF'
+          export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+          export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+          export S3_BUCKET=${S3_BUCKET}
+          ENVEOF
+          chmod 600 /home/ubuntu/app/.env"
+
+          # 파일 전송
           scp -i key.pem $OPT \
             target/yumyum-backend-0.0.1-SNAPSHOT.jar \
             docker-compose.yml \
             run-deploy.sh \
             ubuntu@$HOST:/home/ubuntu/app/
 
-          # 스크립트 한 번만 실행
+          # 배포 실행
           ssh -i key.pem $OPT ubuntu@$HOST 'bash /home/ubuntu/app/run-deploy.sh'
 
           rm -f key.pem run-deploy.sh
