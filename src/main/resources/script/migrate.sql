@@ -1,6 +1,6 @@
 -- ================================================================
 -- YamYam DB 마이그레이션 스크립트
--- 실행: docker exec -i yamyam-spring-mysql-1 \
+-- 실행: docker exec -i app-mysql-1 \
 --         mysql -uroot -pssafy --default-character-set=utf8mb4 yamyamdb \
 --         < migrate.sql
 -- ================================================================
@@ -28,14 +28,16 @@ CREATE TABLE `USERS` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-INSERT INTO `USERS` VALUES
-(1,'ssafy123','hashed_password_1','김싸피','https://r2.yamyam.com/profiles/kim.png',26,'MALE',175.5,74.2,68,NULL,'2026-06-08 04:20:04','2026-06-08 04:20:04'),
-(2,'cheon99','hashed_password_2','천기오','https://r2.yamyam.com/profiles/cheon.png',25,'MALE',180,85.5,78,NULL,'2026-06-08 04:20:04','2026-06-08 04:20:04'),
-(3,'yummy_fan','hashed_password_3','밥돌이',NULL,22,'NONE',162,55,53.5,NULL,'2026-06-08 04:20:04','2026-06-08 04:20:04'),
-(4,'sohui','sohui','sohui','default_profile.png',26,'FEMALE',159.5,100,50,NULL,'2026-06-08 04:32:47','2026-06-08 04:32:47'),
-(5,'test','test','테스트유저',NULL,25,'NONE',170,65,60,NULL,'2026-06-08 07:54:38','2026-06-08 08:06:51');
+INSERT INTO `USERS` (user_id, password, nick_name, age, gender, height, weight, goal_weight, user_goal) VALUES
+('sohui',  'sohui', 'sohui',  26, 'FEMALE', 159.5, 100.0, 50.0, '다이어트'),
+('test',   'test',  '테스트유저', 25, 'NONE', 170.0, 65.0, 60.0, NULL),
+('jihun',  '1234',  '김지훈',  25, 'MALE',   178.0, 72.0,  68.0, '체중 감량'),
+('soyeon', '1234',  '박소연',  23, 'FEMALE', 163.0, 55.0,  52.0, '건강 유지'),
+('minjun', '1234',  '이민준',  26, 'MALE',   181.0, 80.0,  75.0, '근육 증량'),
+('yuna',   '1234',  '최유나',  24, 'FEMALE', 167.0, 58.0,  55.0, '다이어트'),
+('suhyun', '1234',  '정수현',  27, 'MALE',   175.0, 77.0,  72.0, '체중 감량');
 
 -- ── TEAMS ────────────────────────────────────────────────────────
 DROP TABLE IF EXISTS `TEAMS`;
@@ -54,11 +56,12 @@ CREATE TABLE `TEAMS` (
   UNIQUE KEY `invite_code` (`invite_code`),
   KEY `king_id` (`king_id`),
   CONSTRAINT `TEAMS_ibfk_1` FOREIGN KEY (`king_id`) REFERENCES `USERS` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-INSERT INTO `TEAMS` VALUES
-(1,'ssafy-diet-01','SSAFY 1학기 다이어트반',10,'INVITE-ABCD-1234','한 달간 다 같이 -5kg 감량!',1,'2026-06-08 04:20:06','2026-06-08 04:20:06'),
-(2,'bulkup-crew','직진 헬스 벌크업 크루',5,'INVITE-HELL-O999','린매스업 및 탄단지 식단 인증',2,'2026-06-08 04:20:06','2026-06-08 04:20:06');
+INSERT INTO `TEAMS` (team_id, team_name, capacity, invite_code, team_goal, king_id) VALUES
+('health-crew-01', '헬스 크루',       10, 'HLTH-CREW-0001', '매일 운동하고 건강한 식단으로 체력 증진!', (SELECT id FROM USERS WHERE user_id='jihun')),
+('diet-challenge',  '다이어트 챌린지', 8,  'DIET-CHAL-0002', '30일 안에 목표 체중 달성하기!',            (SELECT id FROM USERS WHERE user_id='soyeon')),
+('morning-club',    '아침 루틴 클럽',  12, 'MORN-CLUB-0003', '건강한 아침 식사로 하루를 시작해요!',       (SELECT id FROM USERS WHERE user_id='suhyun'));
 
 -- ── TEAM_MEMBERS ─────────────────────────────────────────────────
 DROP TABLE IF EXISTS `TEAM_MEMBERS`;
@@ -72,13 +75,22 @@ CREATE TABLE `TEAM_MEMBERS` (
   KEY `user_id` (`user_id`),
   CONSTRAINT `TEAM_MEMBERS_ibfk_1` FOREIGN KEY (`team_id`) REFERENCES `TEAMS` (`id`) ON DELETE CASCADE,
   CONSTRAINT `TEAM_MEMBERS_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `USERS` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-INSERT INTO `TEAM_MEMBERS` VALUES
-(1,1,1,'2026-06-08 04:20:08'),(2,1,2,'2026-06-08 04:20:08'),(3,1,3,'2026-06-08 04:20:08'),
-(4,2,2,'2026-06-08 04:20:08'),(5,2,1,'2026-06-08 04:20:08'),
-(6,1,4,'2026-06-08 07:54:43'),(7,1,5,'2026-06-08 07:54:43'),
-(8,2,4,'2026-06-08 07:54:43'),(9,2,5,'2026-06-08 07:54:43');
+-- 헬스 크루: 김지훈(방장), 이민준, 정수현, sohui
+INSERT INTO TEAM_MEMBERS (team_id, user_id)
+SELECT t.id, u.id FROM TEAMS t JOIN USERS u ON u.user_id IN ('jihun','minjun','suhyun','sohui')
+WHERE t.team_id = 'health-crew-01';
+
+-- 다이어트 챌린지: 박소연(방장), 최유나, 김지훈, sohui
+INSERT INTO TEAM_MEMBERS (team_id, user_id)
+SELECT t.id, u.id FROM TEAMS t JOIN USERS u ON u.user_id IN ('soyeon','yuna','jihun','sohui')
+WHERE t.team_id = 'diet-challenge';
+
+-- 아침 루틴 클럽: 정수현(방장), 5명 전원 + sohui
+INSERT INTO TEAM_MEMBERS (team_id, user_id)
+SELECT t.id, u.id FROM TEAMS t JOIN USERS u ON u.user_id IN ('jihun','soyeon','minjun','yuna','suhyun','sohui')
+WHERE t.team_id = 'morning-club';
 
 -- ── VIDEOS ───────────────────────────────────────────────────────
 DROP TABLE IF EXISTS `VIDEOS`;
@@ -96,16 +108,7 @@ CREATE TABLE `VIDEOS` (
   KEY `team_id` (`team_id`),
   CONSTRAINT `VIDEOS_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `USERS` (`id`) ON DELETE CASCADE,
   CONSTRAINT `VIDEOS_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `TEAMS` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-INSERT INTO `VIDEOS` VALUES
-(8, 1,1,'BREAKFAST','2026-06-08','/videos/ssafy_bf.mp4','오트밀 프로틴볼','2026-06-08 08:03:03'),
-(9, 1,1,'LUNCH',   '2026-06-08','/videos/ssafy_lu.mp4','닭가슴살 샐러드','2026-06-08 08:03:03'),
-(10,1,1,'DINNER',  '2026-06-08','/videos/ssafy_di.mp4','연어 스테이크','2026-06-08 08:03:03'),
-(11,2,1,'BREAKFAST','2026-06-08','/videos/cheon_bf.mp4','계란 토스트','2026-06-08 08:03:03'),
-(12,2,1,'LUNCH',   '2026-06-08','/videos/cheon_lu.mp4','한식 도시락','2026-06-08 08:03:03'),
-(13,3,1,'LUNCH',   '2026-06-08','/videos/yummy_lu.mp4','비빔밥','2026-06-08 08:03:03'),
-(14,4,1,'BREAKFAST','2026-06-08','/videos/sohui_bf.mp4','단백질 쉐이크','2026-06-08 08:03:03');
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ── WEIGHT_HISTORY ───────────────────────────────────────────────
 DROP TABLE IF EXISTS `WEIGHT_HISTORY`;
