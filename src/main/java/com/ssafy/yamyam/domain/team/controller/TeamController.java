@@ -1,8 +1,12 @@
 package com.ssafy.yamyam.domain.team.controller;
 
+import com.ssafy.yamyam.domain.team.dto.TeamCreateRequestDto;
 import com.ssafy.yamyam.domain.team.dto.TeamDto;
+import com.ssafy.yamyam.domain.team.dto.TeamJoinRequestDto;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,6 +38,38 @@ public class TeamController {
         // 2. 서비스 레이어를 호출하여 내가 속한 팀 목록을 조회해 반환
         List<TeamDto> myTeams = teamService.findTeamsByUserId(loginUserKey);
         return ResponseEntity.ok(myTeams);
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createTeam(@Valid @RequestBody TeamCreateRequestDto requestDto, HttpServletRequest request) {
+        Long loginUserKey = (Long) request.getAttribute("loginUserKey");
+
+        if (loginUserKey == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("인증되지 않은 사용자입니다.");
+        }
+
+        try {
+            TeamDetailResponseDto createdTeam = teamService.createTeam(loginUserKey, requestDto);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdTeam);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/join")
+    public ResponseEntity<?> joinTeam(@Valid @RequestBody TeamJoinRequestDto requestDto, HttpServletRequest request) {
+        Long loginUserKey = (Long) request.getAttribute("loginUserKey");
+
+        if (loginUserKey == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("인증되지 않은 사용자입니다.");
+        }
+
+        try {
+            TeamDetailResponseDto joinedTeam = teamService.joinTeam(loginUserKey, requestDto);
+            return ResponseEntity.ok(joinedTeam);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
 

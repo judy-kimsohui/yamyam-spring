@@ -4,6 +4,45 @@
 
 <mapper namespace="com.ssafy.yamyam.domain.team.mapper.TeamMapper">
 
+    <insert id="insertTeam" parameterType="com.ssafy.yamyam.domain.team.model.Team" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO TEAMS (team_id, team_name, capacity, invite_code, team_goal, king_id)
+        VALUES (#{teamId}, #{teamName}, #{capacity}, #{inviteCode}, #{teamGoal}, #{kingId})
+    </insert>
+
+    <insert id="insertTeamMember" parameterType="com.ssafy.yamyam.domain.team.model.TeamMember" useGeneratedKeys="true" keyProperty="teamMemberId">
+        INSERT INTO TEAM_MEMBERS (team_id, user_id)
+        VALUES (#{teamId}, #{userId})
+    </insert>
+
+    <select id="findTeamByInviteCode" resultType="com.ssafy.yamyam.domain.team.model.Team">
+        SELECT
+            id,
+            team_id AS teamId,
+            team_name AS teamName,
+            capacity,
+            invite_code AS inviteCode,
+            team_goal AS teamGoal,
+            king_id AS kingId,
+            created_at AS createdAt,
+            updated_at AS updatedAt
+        FROM TEAMS
+        WHERE invite_code = #{inviteCode}
+        LIMIT 1
+    </select>
+
+    <select id="countTeamMembers" resultType="int">
+        SELECT COUNT(*)
+        FROM TEAM_MEMBERS
+        WHERE team_id = #{teamId}
+    </select>
+
+    <select id="existsTeamMember" resultType="int">
+        SELECT COUNT(*)
+        FROM TEAM_MEMBERS
+        WHERE team_id = #{teamId}
+          AND user_id = #{userId}
+    </select>
+
     <resultMap id="TeamDetailResultMap" type="com.ssafy.yamyam.domain.team.dto.TeamDetailResponseDto">
 
         <id property="teamInfo.id" column="team_pk_id"/>
@@ -55,6 +94,7 @@
         SELECT
         t.id AS id,
         t.team_id AS teamId,
+        t.invite_code AS inviteCode,
         t.team_name AS name,
         t.capacity AS capacity,
         t.team_goal AS teamGoal,
