@@ -40,6 +40,16 @@ public class LocalVideoStorage implements VideoStorage {
         return stored;
     }
 
+    @Override
+    public void delete(String stored) {
+        if (stored == null || !stored.startsWith("/videos/")) return;
+        String filename = stored.substring("/videos/".length());
+        File folder = new File(uploadDir).isAbsolute()
+                ? new File(uploadDir)
+                : new File(System.getProperty("user.dir"), uploadDir);
+        new File(folder, filename).delete();
+    }
+
     private String getExt(String filename) {
         if (filename == null || !filename.contains(".")) return ".mp4";
         return filename.substring(filename.lastIndexOf("."));

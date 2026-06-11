@@ -11,4 +11,7 @@ import java.util.List;
 public interface VideoMapper {
     void insertVideo(Video video);
     List<VideoDto> findVideosByTeamAndDate(@Param("teamId") Long teamId, @Param("mealDate") String mealDate);
+    VideoDto findById(@Param("id") Long id);
+    void deleteById(@Param("id") Long id);
+    void updateAnalysis(Video video);
 }

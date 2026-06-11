@@ -12,5 +12,10 @@ public class VideoDto {
     private String mealDate;
     private String videoUrl;
     private String description;
+    private Double calories;
+    private Double carbs;
+    private Double protein;
+    private Double fat;
+    private String aiComment;
     private String createdAt;
 }
