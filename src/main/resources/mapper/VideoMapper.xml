@@ -27,7 +27,9 @@
     </insert>
 
     <select id="findVideosByTeamAndDate" resultType="com.ssafy.yamyam.domain.video.dto.VideoDto">
-        SELECT <include refid="videoColumns"/>
+        SELECT <include refid="videoColumns"/>,
+               (SELECT COUNT(*) FROM VIDEO_LIKES vl WHERE vl.video_id = v.id) AS likeCount,
+               (SELECT COUNT(*) FROM VIDEO_LIKES vl2 WHERE vl2.video_id = v.id AND vl2.user_id = #{userId}) AS liked
         FROM VIDEOS v
         JOIN USERS u ON v.user_id = u.id
         WHERE v.team_id = #{teamId}
@@ -35,7 +37,9 @@
     </select>
 
     <select id="findById" resultType="com.ssafy.yamyam.domain.video.dto.VideoDto">
-        SELECT <include refid="videoColumns"/>
+        SELECT <include refid="videoColumns"/>,
+               (SELECT COUNT(*) FROM VIDEO_LIKES vl WHERE vl.video_id = v.id) AS likeCount,
+               (SELECT COUNT(*) FROM VIDEO_LIKES vl2 WHERE vl2.video_id = v.id AND vl2.user_id = #{userId}) AS liked
         FROM VIDEOS v
         JOIN USERS u ON v.user_id = u.id
         WHERE v.id = #{id}
@@ -54,5 +58,21 @@
             ai_comment = #{aiComment}
         WHERE id = #{id}
     </update>
+
+    <insert id="insertLike">
+        INSERT IGNORE INTO VIDEO_LIKES (video_id, user_id) VALUES (#{videoId}, #{userId})
+    </insert>
+
+    <delete id="deleteLike">
+        DELETE FROM VIDEO_LIKES WHERE video_id = #{videoId} AND user_id = #{userId}
+    </delete>
+
+    <select id="existsLike" resultType="int">
+        SELECT COUNT(*) FROM VIDEO_LIKES WHERE video_id = #{videoId} AND user_id = #{userId}
+    </select>
+
+    <select id="countLikes" resultType="int">
+        SELECT COUNT(*) FROM VIDEO_LIKES WHERE video_id = #{videoId}
+    </select>
 
 </mapper>

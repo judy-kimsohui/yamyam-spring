@@ -18,4 +18,6 @@ public class VideoDto {
     private Double fat;
     private String aiComment;
     private String createdAt;
+    private int likeCount;
+    private boolean liked;
 }
