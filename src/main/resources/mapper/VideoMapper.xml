@@ -3,6 +3,23 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ssafy.yamyam.domain.video.mapper.VideoMapper">
 
+    <sql id="videoColumns">
+        v.id,
+        v.user_id       AS userId,
+        u.nick_name     AS uploaderNickName,
+        v.team_id       AS teamId,
+        v.meal_type     AS mealType,
+        v.meal_date     AS mealDate,
+        v.video_url     AS videoUrl,
+        v.description,
+        v.calories,
+        v.carbs,
+        v.protein,
+        v.fat,
+        v.ai_comment    AS aiComment,
+        v.created_at    AS createdAt
+    </sql>
+
     <insert id="insertVideo" parameterType="com.ssafy.yamyam.domain.video.model.Video"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO VIDEOS (user_id, team_id, meal_type, meal_date, video_url, description)
@@ -10,20 +27,52 @@
     </insert>
 
     <select id="findVideosByTeamAndDate" resultType="com.ssafy.yamyam.domain.video.dto.VideoDto">
-        SELECT
-            v.id,
-            v.user_id       AS userId,
-            u.nick_name     AS uploaderNickName,
-            v.team_id       AS teamId,
-            v.meal_type     AS mealType,
-            v.meal_date     AS mealDate,
-            v.video_url     AS videoUrl,
-            v.description,
-            v.created_at    AS createdAt
+        SELECT <include refid="videoColumns"/>,
+               (SELECT COUNT(*) FROM VIDEO_LIKES vl WHERE vl.video_id = v.id) AS likeCount,
+               (SELECT COUNT(*) FROM VIDEO_LIKES vl2 WHERE vl2.video_id = v.id AND vl2.user_id = #{userId}) AS liked
         FROM VIDEOS v
         JOIN USERS u ON v.user_id = u.id
         WHERE v.team_id = #{teamId}
           AND v.meal_date = #{mealDate}
+    </select>
+
+    <select id="findById" resultType="com.ssafy.yamyam.domain.video.dto.VideoDto">
+        SELECT <include refid="videoColumns"/>,
+               (SELECT COUNT(*) FROM VIDEO_LIKES vl WHERE vl.video_id = v.id) AS likeCount,
+               (SELECT COUNT(*) FROM VIDEO_LIKES vl2 WHERE vl2.video_id = v.id AND vl2.user_id = #{userId}) AS liked
+        FROM VIDEOS v
+        JOIN USERS u ON v.user_id = u.id
+        WHERE v.id = #{id}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM VIDEOS WHERE id = #{id}
+    </delete>
+
+    <update id="updateAnalysis" parameterType="com.ssafy.yamyam.domain.video.model.Video">
+        UPDATE VIDEOS
+        SET calories   = #{calories},
+            carbs      = #{carbs},
+            protein    = #{protein},
+            fat        = #{fat},
+            ai_comment = #{aiComment}
+        WHERE id = #{id}
+    </update>
+
+    <insert id="insertLike">
+        INSERT IGNORE INTO VIDEO_LIKES (video_id, user_id) VALUES (#{videoId}, #{userId})
+    </insert>
+
+    <delete id="deleteLike">
+        DELETE FROM VIDEO_LIKES WHERE video_id = #{videoId} AND user_id = #{userId}
+    </delete>
+
+    <select id="existsLike" resultType="int">
+        SELECT COUNT(*) FROM VIDEO_LIKES WHERE video_id = #{videoId} AND user_id = #{userId}
+    </select>
+
+    <select id="countLikes" resultType="int">
+        SELECT COUNT(*) FROM VIDEO_LIKES WHERE video_id = #{videoId}
     </select>
 
 </mapper>

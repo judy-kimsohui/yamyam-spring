@@ -60,6 +60,12 @@ public class S3VideoStorage implements VideoStorage {
         return presigned.url().toString();
     }
 
+    @Override
+    public void delete(String stored) {
+        if (stored == null || stored.startsWith("/") || stored.startsWith("http")) return;
+        s3Client.deleteObject(r -> r.bucket(bucket).key(stored));
+    }
+
     private String getExt(String filename) {
         if (filename == null || !filename.contains(".")) return ".mp4";
         return filename.substring(filename.lastIndexOf("."));
