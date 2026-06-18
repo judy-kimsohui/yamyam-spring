@@ -1,5 +1,6 @@
 package com.ssafy.yamyam.domain.video.service;
 
+import com.ssafy.yamyam.domain.nutrition.service.VideoAnalysisService;
 import com.ssafy.yamyam.domain.video.dto.VideoDto;
 import com.ssafy.yamyam.domain.video.mapper.VideoMapper;
 import com.ssafy.yamyam.domain.video.model.Video;
@@ -18,7 +19,9 @@ public class VideoService {
 
     private final VideoMapper videoMapper;
     private final VideoStorage videoStorage;
-    private final VideoAnalysisService analysisService;
+
+    private final VideoAnalysisService videoAnalysisService;
+
 
     @Transactional
     public VideoDto uploadVideo(Long userId, Long teamId, String mealType,
@@ -35,16 +38,18 @@ public class VideoService {
 
         videoMapper.insertVideo(video);
 
-        analysisService.analyze(description, mealType).ifPresent(r -> {
-            video.setCalories(r.getCalories());
-            video.setCarbs(r.getCarbs());
-            video.setProtein(r.getProtein());
-            video.setFat(r.getFat());
-            video.setAiComment(r.getComment());
-            videoMapper.updateAnalysis(video);
-        });
 
-        VideoDto dto = buildDto(video);
+        // AI가 영상을 분석하는
+        videoAnalysisService.analyzeAsync(video.getId(), stored);
+
+
+        VideoDto dto = new VideoDto();
+        dto.setId(video.getId());
+        dto.setUserId(userId);
+        dto.setTeamId(teamId);
+        dto.setMealType(video.getMealType());
+        dto.setMealDate(mealDate);
+
         dto.setVideoUrl(videoStorage.toUrl(stored));
         dto.setUploaderNickName(null);
         return dto;
