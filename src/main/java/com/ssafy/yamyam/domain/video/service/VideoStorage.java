@@ -8,4 +8,7 @@ public interface VideoStorage {
 
     /** DB 식별값 → 실제 접근 URL (로컬: 그대로, S3: presigned URL) */
     String toUrl(String stored);
+
+    /** 저장된 파일 삭제 */
+    void delete(String stored);
 }
