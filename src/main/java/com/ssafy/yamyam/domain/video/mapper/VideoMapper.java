@@ -1,5 +1,6 @@
 package com.ssafy.yamyam.domain.video.mapper;
 
+import com.ssafy.yamyam.domain.nutrition.model.RecognizedFoodItem;
 import com.ssafy.yamyam.domain.video.dto.VideoDto;
 import com.ssafy.yamyam.domain.video.model.Video;
 import org.apache.ibatis.annotations.Mapper;
@@ -24,4 +25,21 @@ public interface VideoMapper {
     // 내가 이 비디오에 좋아요를 눌렀었는가
     int existsLike(@Param("videoId") Long videoId, @Param("userId") Long userId);
     int countLikes(@Param("videoId") Long videoId);
+
+
+    // ai comment 창에서 먹은 양 조절
+    void updateFoodItemQuantity(@Param("id") Long id, @Param("quantity") Double quantity);
+
+    //
+    void updateNutritionAnalysisTotal(
+            @Param("videoId") Long videoId,
+            @Param("totalCalories") Double totalCalories,
+            @Param("totalCarbs") Double totalCarbs,
+            @Param("totalProtein") Double totalProtein,
+            @Param("totalFat") Double totalFat
+    );
+
+    RecognizedFoodItem findFoodItemById(Long id);
+
+    List<VideoDto> findTeamVideos(Long teamId, String date, Long loginUserId);
 }

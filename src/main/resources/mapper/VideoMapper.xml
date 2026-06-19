@@ -82,4 +82,8 @@
         SELECT COUNT(*) FROM VIDEO_LIKES WHERE video_id = #{videoId}
     </select>
 
+    <update id="updateFoodItemQuantity">
+        UPDATE recognized_food_item SET quantity = #{quantity} WHERE id = #{id}
+    </update>
+
 </mapper>
