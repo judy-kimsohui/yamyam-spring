@@ -1,13 +1,11 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.ssafy.yamyam.domain.nutrition.mapper.NutritionMapper">
 
-    <!-- ===================== nutrition_analysis ===================== -->
-
     <insert id="insertNutritionAnalysis" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO nutrition_analysis (video_id, status, created_at, updated_at)
+        INSERT INTO NUTRITION_ANALYSIS (video_id, status, created_at, updated_at)
         VALUES (#{videoId}, #{status}, NOW(), NOW())
     </insert>
 
@@ -24,12 +22,12 @@
             error_message  AS errorMessage,
             created_at     AS createdAt,
             updated_at     AS updatedAt
-        FROM nutrition_analysis
+        FROM NUTRITION_ANALYSIS
         WHERE video_id = #{videoId}
     </select>
 
     <update id="updateNutritionAnalysis">
-        UPDATE nutrition_analysis
+        UPDATE NUTRITION_ANALYSIS
         SET
             status         = #{status},
             total_calories = #{totalCalories},
@@ -42,10 +40,8 @@
         WHERE id = #{id}
     </update>
 
-    <!-- ===================== recognized_food_item ===================== -->
-
     <insert id="insertFoodItem" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO recognized_food_item
+        INSERT INTO RECOGNIZED_FOOD_ITEM
             (nutrition_analysis_id, food_name, calories, carbs, protein, fat)
         VALUES
             (#{nutritionAnalysisId}, #{foodName}, #{calories}, #{carbs}, #{protein}, #{fat})
@@ -61,7 +57,7 @@
             carbs,
             protein,
             fat
-        FROM recognized_food_item
+        FROM RECOGNIZED_FOOD_ITEM
         WHERE nutrition_analysis_id = #{nutritionAnalysisId}
         ORDER BY id
     </select>

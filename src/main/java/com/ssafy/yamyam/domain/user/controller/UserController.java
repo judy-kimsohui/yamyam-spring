@@ -104,7 +104,7 @@ public class UserController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("인증 실패: " + e.getMessage());
-        }
+        }	
     }
 
     // UserController.java 파일 내부에 추가

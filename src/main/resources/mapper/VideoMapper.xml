@@ -42,12 +42,13 @@
     </select>
 
     <select id="findVideosByUserAndDate" resultType="com.ssafy.yamyam.domain.video.dto.VideoDto">
-        SELECT <include refid="videoColumns"/>,
+        SELECT <include refid="videoBaseColumns"/>,
+               <include refid="nutritionColumns"/>,
                (SELECT COUNT(*) FROM VIDEO_LIKES vl WHERE vl.video_id = v.id) AS likeCount,
                (SELECT COUNT(*) FROM VIDEO_LIKES vl2 WHERE vl2.video_id = v.id AND vl2.user_id = #{userId}) AS liked
         FROM VIDEOS v
         JOIN USERS u ON v.user_id = u.id
-        WHERE v.user_id = #{ownerId}
+        LEFT JOIN NUTRITION_ANALYSIS na ON v.id = na.video_id WHERE v.user_id = #{ownerId}
           AND v.meal_date = #{mealDate}
         ORDER BY v.meal_type
     </select>
@@ -67,14 +68,17 @@
         DELETE FROM VIDEOS WHERE id = #{id}
     </delete>
 
-    <update id="updateAnalysis" parameterType="com.ssafy.yamyam.domain.video.model.Video">
+    <update id="updateAnalysis" parameterType="com.ssafy.yamyam.domain.nutrition.model.NutritionAnalysis">
         UPDATE NUTRITION_ANALYSIS
-        SET total_calories = #{calories},
-        total_carbs    = #{carbs},
-        total_protein  = #{protein},
-        total_fat      = #{fat},
-        foods_json     = #{aiComment}
-        WHERE video_id = #{id}
+        SET total_calories = #{totalCalories},
+            total_carbs    = #{totalCarbs},
+            total_protein  = #{totalProtein},
+            total_fat      = #{totalFat},
+            status         = #{status},
+            foods_json     = #{foodsJson},
+            error_message  = #{errorMessage},
+            updated_at     = NOW()
+        WHERE video_id     = #{videoId}
     </update>
 
     <insert id="insertLike">
@@ -92,5 +96,9 @@
     <select id="countLikes" resultType="int">
         SELECT COUNT(*) FROM VIDEO_LIKES WHERE video_id = #{videoId}
     </select>
+
+    <update id="updateFoodItemQuantity">
+        UPDATE RECOGNIZED_FOOD_ITEM SET quantity = #{quantity} WHERE id = #{id}
+    </update>
 
 </mapper>
