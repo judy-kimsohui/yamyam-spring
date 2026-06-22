@@ -1,0 +1,83 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [ publish ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build JAR (skip tests)
+        run: mvn clean package -DskipTests
+
+      - name: Deploy to EC2
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        run: |
+          echo "$SSH_KEY" > key.pem
+          chmod 600 key.pem
+          OPT="-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ServerAliveCountMax=10"
+
+          # 배포 스크립트 생성
+          cat > run-deploy.sh << 'SCRIPT'
+          #!/bin/bash
+          set -e
+          mkdir -p /home/ubuntu/app/logs /home/ubuntu/uploads
+          cd /home/ubuntu/app
+          echo "[1] DB 기동..."
+          docker compose up -d
+          echo "[2] 기존 앱 종료..."
+          pkill -f "app.jar" 2>/dev/null || true
+          sleep 2
+          echo "[3] 앱 시작..."
+          source /home/ubuntu/app/.env
+          nohup java -Dspring.profiles.active=prod -Xmx512m \
+            -jar /home/ubuntu/app/app.jar \
+            > /home/ubuntu/app/logs/app.log 2>&1 &
+          sleep 10
+          if pgrep -f "app.jar" > /dev/null; then
+            echo "✅ Backend is running (PID: $(pgrep -f app.jar))"
+          else
+            echo "❌ Backend failed - last 20 lines:"
+            tail -20 /home/ubuntu/app/logs/app.log
+            exit 1
+          fi
+          SCRIPT
+
+          # AWS 환경변수를 EC2에 .env 파일로 저장 (git에 커밋되지 않음)
+          ssh -i key.pem $OPT ubuntu@$HOST "cat > /home/ubuntu/app/.env << 'ENVEOF'
+          export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+          export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+          export S3_BUCKET=${S3_BUCKET}
+          ENVEOF
+          chmod 600 /home/ubuntu/app/.env"
+
+          # 파일 전송 (JAR은 app.jar 이름으로 덮어씀)
+          scp -i key.pem $OPT \
+            target/yumyum-backend-0.0.1-SNAPSHOT.jar \
+            ubuntu@$HOST:/home/ubuntu/app/app.jar
+          scp -i key.pem $OPT \
+            docker-compose.yml \
+            run-deploy.sh \
+            ubuntu@$HOST:/home/ubuntu/app/
+
+          # 배포 실행
+          ssh -i key.pem $OPT ubuntu@$HOST 'bash /home/ubuntu/app/run-deploy.sh'
+
+          rm -f key.pem run-deploy.sh
