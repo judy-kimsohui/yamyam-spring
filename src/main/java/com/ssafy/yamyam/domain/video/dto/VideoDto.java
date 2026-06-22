@@ -20,4 +20,6 @@ public class VideoDto {
     private String createdAt;
     private int likeCount;
     private boolean liked;
+
+    private String status; // PENDING, DONE, FAILED 등
 }

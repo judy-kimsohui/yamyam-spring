@@ -67,15 +67,17 @@
         DELETE FROM VIDEOS WHERE id = #{id}
     </delete>
 
-    <update id="updateAnalysis" parameterType="com.ssafy.yamyam.domain.video.model.Video">
+    <update id="updateAnalysis" parameterType="com.ssafy.yamyam.domain.nutrition.model.NutritionAnalysis">
         UPDATE NUTRITION_ANALYSIS
-        SET total_calories = #{calories},
-        total_carbs    = #{carbs},
-        total_protein  = #{protein},
-        total_fat      = #{fat},
-        foods_json     = #{aiComment}
-        WHERE video_id = #{id}
-    </update>
+        SET total_calories = #{totalCalories},
+            total_carbs    = #{totalCarbs},
+            total_protein  = #{totalProtein},
+            total_fat      = #{totalFat},
+            status         = #{status},
+            foods_json     = #{foodsJson},
+            error_message  = #{errorMessage},
+            updated_at     = NOW()
+        WHERE video_id     = #{videoId} </update>
 
     <insert id="insertLike">
         INSERT IGNORE INTO VIDEO_LIKES (video_id, user_id) VALUES (#{videoId}, #{userId})
@@ -92,5 +94,9 @@
     <select id="countLikes" resultType="int">
         SELECT COUNT(*) FROM VIDEO_LIKES WHERE video_id = #{videoId}
     </select>
+
+    <update id="updateFoodItemQuantity">
+        UPDATE recognized_food_item SET quantity = #{quantity} WHERE id = #{id}
+    </update>
 
 </mapper>
