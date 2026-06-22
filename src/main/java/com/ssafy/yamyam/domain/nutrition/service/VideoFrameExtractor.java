@@ -31,8 +31,16 @@ public class VideoFrameExtractor {
     private static final int TARGET_MAX_BYTES = 25 * 1024; // 25KB
 
     public List<byte[]> extractFrames(String stored) throws IOException {
-        String filename = stored.replaceFirst("^/videos/", "");
-        File videoFile = resolveVideoFile(filename);
+        File videoFile;
+
+        // ⭕ [정밀 조율] S3에서 받아온 완전한 로컬 절대 경로가 들어온 경우, 복잡한 리졸브를 패스하고 직접 매핑
+        if (stored.startsWith("/") && stored.contains("_video_")) {
+            videoFile = new File(stored);
+        } else {
+            // 기존 로컬 파일 검증 로직 하위 호환성 유지
+            String filename = stored.replaceFirst("^/videos/", "");
+            videoFile = resolveVideoFile(filename);
+        }
 
         if (!videoFile.exists()) {
             throw new IOException("영상 파일을 찾을 수 없습니다: " + videoFile.getAbsolutePath());

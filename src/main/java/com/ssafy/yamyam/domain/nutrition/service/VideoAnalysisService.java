@@ -78,7 +78,7 @@ public class VideoAnalysisService {
             String bucketName = this.bucket; // 기본 설정 파일 버킷명 주입
             String s3Key = storedVideoPath;  // 기본 경로 바인딩
 
-            // 🌟 [핵심 파싱 빌드업] s3://, http, 순수 Key 유형을 모두 정밀 정제하여 오차 차단
+            // 1. S3 URI 및 HTTP URL 포맷 정밀 정제
             if (storedVideoPath.startsWith("s3://")) {
                 java.net.URI uri = new java.net.URI(storedVideoPath);
                 bucketName = uri.getHost();
@@ -92,10 +92,8 @@ public class VideoAnalysisService {
                     bucketName = host.split("\\.")[0];
                 }
                 
-                // URL 내부 파라미터(?X-Amz-...)나 주소 꼬임 방지를 위해 videos/ 경로 기점 정밀 슬라이싱
                 if (storedVideoPath.contains("videos/")) {
                     s3Key = storedVideoPath.substring(storedVideoPath.indexOf("videos/"));
-                    // 혹시 쿼리 스트링이 붙어있다면 순수 파일명까지만 잘라냄
                     if (s3Key.contains("?")) {
                         s3Key = s3Key.substring(0, s3Key.indexOf("?"));
                     }
@@ -107,21 +105,22 @@ public class VideoAnalysisService {
 
             log.info("[영양분석] videoId={} S3 원격 다운로드 파이프라인 시동 (Bucket: {}, Key: {})", videoId, bucketName, s3Key);
 
-            // 용량과 쓰기 권한이 보장된 프로젝트 루트 디렉토리(~/app) 내에 고유 임시 파일 확보
+            // 🌟 [정석 해결 포인트] 파일을 미리 생성하지 않고 경로만 추상적으로 지정 (물리 파일 생성 X)
             File appDir = new File(System.getProperty("user.dir"));
-            tempVideoFile = File.createTempFile("s3_video_" + videoId + "_", ".mp4", appDir);
+            String tempFileName = "s3_video_" + videoId + "_" + System.currentTimeMillis() + ".mp4";
+            tempVideoFile = new File(appDir, tempFileName); 
             
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                     .bucket(bucketName)
                     .key(s3Key)
                     .build();
 
-            // 🌟 ResponseTransformer.toFile 적용으로 AWS SDK 레벨에서 원자적 스트림 파일 쓰기 강제 보장
+            // 🌟 디스크에 파일이 없는 상태이므로 AWS SDK가 에러 없이 파일을 직접 개설하며 스트림을 씁니다.
             s3Client.getObject(getObjectRequest, software.amazon.awssdk.core.sync.ResponseTransformer.toFile(tempVideoFile));
-            String targetLocalPath = tempVideoFile.getAbsolutePath();
+            storedVideoPath = tempVideoFile.getAbsolutePath();
 
             log.info("[영양분석] videoId={} 디스크 이식 성공 -> OpenCV 프레임 추출 시작", videoId);
-            List<byte[]> frames = frameExtractor.extractFrames(targetLocalPath);
+            List<byte[]> frames = frameExtractor.extractFrames(storedVideoPath);
 
             if (frames == null || frames.isEmpty()) {
                 throw new RuntimeException("비디오 파일에서 유효한 이미지 프레임을 추출하지 못했습니다.");
@@ -151,7 +150,6 @@ public class VideoAnalysisService {
             messagePayload.put("role", "user");
             messagePayload.put("content", contentList);
 
-            // GMS 게이트웨이 라우팅을 보장하기 위해 LinkedHashMap으로 "model" 필드를 맨 앞으로 고정
             Map<String, Object> requestBody = new LinkedHashMap<>();
             requestBody.put("model", "gpt-4o");
             requestBody.put("messages", List.of(messagePayload));
