@@ -75,24 +75,40 @@ public class VideoAnalysisService {
         File tempVideoFile = null;
 
         try {
-            String bucketName = this.bucket;
-            String s3Key = storedVideoPath;
+            String bucketName = this.bucket; // 기본 설정 파일 버킷명 주입
+            String s3Key = storedVideoPath;  // 기본 경로 바인딩
 
-            // 🌟 1. 들어온 인자값 형태에 따른 S3 Key / Bucket 정밀 추출 방어 로직
+            // 🌟 [핵심 파싱 빌드업] s3://, http, 순수 Key 유형을 모두 정밀 정제하여 오차 차단
             if (storedVideoPath.startsWith("s3://")) {
                 java.net.URI uri = new java.net.URI(storedVideoPath);
                 bucketName = uri.getHost();
                 String path = uri.getPath();
                 s3Key = path.startsWith("/") ? path.substring(1) : path;
-            } else if (storedVideoPath.startsWith("http://") || storedVideoPath.startsWith("https://")) {
+            } 
+            else if (storedVideoPath.startsWith("http://") || storedVideoPath.startsWith("https://")) {
                 java.net.URI uri = new java.net.URI(storedVideoPath);
-                bucketName = uri.getHost().split("\\.")[0];
-                s3Key = uri.getPath().substring(1);
+                String host = uri.getHost();
+                if (host != null && host.contains(".")) {
+                    bucketName = host.split("\\.")[0];
+                }
+                
+                // URL 내부 파라미터(?X-Amz-...)나 주소 꼬임 방지를 위해 videos/ 경로 기점 정밀 슬라이싱
+                if (storedVideoPath.contains("videos/")) {
+                    s3Key = storedVideoPath.substring(storedVideoPath.indexOf("videos/"));
+                    // 혹시 쿼리 스트링이 붙어있다면 순수 파일명까지만 잘라냄
+                    if (s3Key.contains("?")) {
+                        s3Key = s3Key.substring(0, s3Key.indexOf("?"));
+                    }
+                } else {
+                    String path = uri.getPath();
+                    s3Key = path.startsWith("/") ? path.substring(1) : path;
+                }
             }
 
-            log.info("[영양분석] videoId={} S3 자원 로컬 /tmp 캐싱 시작 (Bucket: {}, Key: {})", videoId, bucketName, s3Key);
+            log.info("[영양분석] videoId={} S3 원격 다운로드 파이프라인 시동 (Bucket: {}, Key: {})", videoId, bucketName, s3Key);
 
-            File appDir = new File(System.getProperty("user.dir")); // 현재 애플리케이션 실행 디렉토리 경로
+            // 용량과 쓰기 권한이 보장된 프로젝트 루트 디렉토리(~/app) 내에 고유 임시 파일 확보
+            File appDir = new File(System.getProperty("user.dir"));
             tempVideoFile = File.createTempFile("s3_video_" + videoId + "_", ".mp4", appDir);
             
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
@@ -100,10 +116,11 @@ public class VideoAnalysisService {
                     .key(s3Key)
                     .build();
 
-            s3Client.getObject(getObjectRequest, Paths.get(tempVideoFile.getAbsolutePath()));
+            // 🌟 ResponseTransformer.toFile 적용으로 AWS SDK 레벨에서 원자적 스트림 파일 쓰기 강제 보장
+            s3Client.getObject(getObjectRequest, software.amazon.awssdk.core.sync.ResponseTransformer.toFile(tempVideoFile));
             String targetLocalPath = tempVideoFile.getAbsolutePath();
 
-            log.info("[영양분석] videoId={} 로컬 다운로드 성공 -> 프레임 추출 시작", videoId);
+            log.info("[영양분석] videoId={} 디스크 이식 성공 -> OpenCV 프레임 추출 시작", videoId);
             List<byte[]> frames = frameExtractor.extractFrames(targetLocalPath);
 
             if (frames == null || frames.isEmpty()) {
@@ -134,13 +151,13 @@ public class VideoAnalysisService {
             messagePayload.put("role", "user");
             messagePayload.put("content", contentList);
 
-            // GMS 게이트웨이 라우팅 보장을 위한 LinkedHashMap 모델 선두 직렬화 고정
+            // GMS 게이트웨이 라우팅을 보장하기 위해 LinkedHashMap으로 "model" 필드를 맨 앞으로 고정
             Map<String, Object> requestBody = new LinkedHashMap<>();
             requestBody.put("model", "gpt-4o");
             requestBody.put("messages", List.of(messagePayload));
             requestBody.put("temperature", 0.2);
 
-            log.info("[영양분석] videoId={} GMS AI 분석 요청 전송", videoId);
+            log.info("[영양분석] videoId={} GMS AI 영양소 식별 매핑 전송", videoId);
 
             WebClient webClient = WebClient.builder()
                     .baseUrl(gmsBaseUrl)
@@ -167,7 +184,7 @@ public class VideoAnalysisService {
                 }
             }
 
-            log.info("[영양분석] videoId={} GPT-4o 분석 응답 수신 완료", videoId);
+            log.info("[영양분석] videoId={} GPT-4o 분석 응답 파싱 수신 완료", videoId);
 
             List<RecognizedFoodItem> foodItems = parseAnalysisResult(response, analysis.getId());
 
@@ -189,7 +206,7 @@ public class VideoAnalysisService {
                 nutritionMapper.insertFoodItem(item);
             }
 
-            log.info("[영양분석] videoId={} 분석 최종 기록 마감 완료 — {}kcal, 음식 {}개",
+            log.info("[영양분석] videoId={} 영양 지표 최종 마감 — {}kcal, 음식 {}종",
                     videoId, totalCalories, foodItems.size());
 
         } catch (WebClientResponseException e) {
@@ -200,14 +217,16 @@ public class VideoAnalysisService {
             analysis.setErrorMessage("GMS " + e.getStatusCode() + ": " + responseBodyStr);
             nutritionMapper.updateNutritionAnalysis(analysis);
         } catch (Exception e) {
-            log.error("[영양분석] videoId={} 최종 처리 실패: {}", videoId, e.getMessage(), e);
+            log.error("[영양분석] videoId={} 인프라 로드 최종 실패: {}", videoId, e.getMessage(), e);
             analysis.setStatus(NutritionAnalysis.Status.FAILED);
             analysis.setErrorMessage(e.getMessage());
             nutritionMapper.updateNutritionAnalysis(analysis);
         } finally {
-            // 🌟 3. 호스트 스토리지 풀릭 방지를 위한 캐시 버퍼 리셋 파일 삭제
+            // 호스트 디스크 스토리지 누수 방지를 위한 임시 비디오 즉시 소거
             if (tempVideoFile != null && tempVideoFile.exists()) {
-                tempVideoFile.delete();
+                if (tempVideoFile.delete()) {
+                    log.info("[영양분석] videoId={} 로컬 가상 스왑 디스크 청소 완료", videoId);
+                }
             }
         }
     }
