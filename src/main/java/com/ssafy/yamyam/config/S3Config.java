@@ -33,7 +33,11 @@ public class S3Config {
     public S3Client s3Client() {
         return S3Client.builder()
                 .region(Region.of(region))
-                .credentialsProvider(credentials())
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(accessKey, secretKey)
+                ))
+                // 🌟 아파치 HTTP 클라이언트 빌더를 명시적으로 지정합니다. (이게 AWS 정석 표준 프로토콜입니다)
+                .httpClientBuilder(software.amazon.awssdk.http.apache.ApacheHttpClient.builder())
                 .build();
     }
 

@@ -159,6 +159,11 @@
 			<artifactId>javacv-platform</artifactId>
 			<version>1.5.10</version>
 		</dependency>
+		
+		<dependency>
+	<groupId>software.amazon.awssdk</groupId>
+	<artifactId>apache-client</artifactId>
+</dependency>
 	</dependencies> 
 
 	<build>
