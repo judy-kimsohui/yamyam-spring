@@ -1,0 +1,22 @@
+type Query {
+    videos(teamId: ID, userId: ID, date: String!): [Video!]!
+}
+
+type Video {
+    id: ID!
+    userId: ID
+    uploaderNickName: String
+    teamId: ID
+    mealType: String
+    mealDate: String
+    videoUrl: String
+    description: String
+    calories: Float
+    carbs: Float
+    protein: Float
+    fat: Float
+    aiComment: String
+    likeCount: Int
+    liked: Boolean
+    createdAt: String
+}

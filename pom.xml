@@ -114,6 +114,12 @@
 			<artifactId>spring-boot-starter-websocket</artifactId>
 		</dependency>
 
+		<!-- GraphQL -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-graphql</artifactId>
+		</dependency>
+
 		<!-- AWS S3 (prod 프로파일에서만 사용) -->
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>

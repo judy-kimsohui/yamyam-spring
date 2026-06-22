@@ -66,6 +66,13 @@ public class VideoService {
         videoMapper.deleteById(videoId);
     }
 
+    public List<VideoDto> getMyVideos(Long ownerId, String mealDate, Long loginUserId) {
+        long uid = loginUserId != null ? loginUserId : 0L;
+        List<VideoDto> videos = videoMapper.findVideosByUserAndDate(ownerId, mealDate, uid);
+        videos.forEach(v -> v.setVideoUrl(videoStorage.toUrl(v.getVideoUrl())));
+        return videos;
+    }
+
     public List<VideoDto> getTeamVideos(Long teamId, String mealDate, Long loginUserId) {
         long uid = loginUserId != null ? loginUserId : 0L;
         List<VideoDto> videos = videoMapper.findVideosByTeamAndDate(teamId, mealDate, uid);
