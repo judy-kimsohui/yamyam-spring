@@ -41,7 +41,7 @@
     </update>
 
     <insert id="insertFoodItem" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO recognized_food_item
+        INSERT INTO RECOGNIZED_FOOD_ITEM
             (nutrition_analysis_id, food_name, calories, carbs, protein, fat)
         VALUES
             (#{nutritionAnalysisId}, #{foodName}, #{calories}, #{carbs}, #{protein}, #{fat})
@@ -57,7 +57,7 @@
             carbs,
             protein,
             fat
-        FROM recognized_food_item
+        FROM RECOGNIZED_FOOD_ITEM
         WHERE nutrition_analysis_id = #{nutritionAnalysisId}
         ORDER BY id
     </select>
