@@ -43,7 +43,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
-                .addPathPatterns("/api/**") // /api/로 시작하는 모든 요청은 토큰 검사를 거치게 함
-                .excludePathPatterns("/api/users/login", "/api/users/signup"); // 💡 단, 로그인과 회원가입은 토큰이 없으므로 제외!
+                .addPathPatterns("/api/**", "/graphql")
+                .excludePathPatterns("/api/users/login", "/api/users/signup");
     }
 }
