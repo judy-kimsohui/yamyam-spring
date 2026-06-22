@@ -92,8 +92,8 @@ public class VideoAnalysisService {
 
             log.info("[영양분석] videoId={} S3 자원 로컬 /tmp 캐싱 시작 (Bucket: {}, Key: {})", videoId, bucketName, s3Key);
 
-            // 🌟 2. /tmp 경로에 고유 임시 파일 버퍼 생성 및 다운로드
-            tempVideoFile = File.createTempFile("s3_video_" + videoId + "_", ".mp4");
+            File appDir = new File(System.getProperty("user.dir")); // 현재 애플리케이션 실행 디렉토리 경로
+            tempVideoFile = File.createTempFile("s3_video_" + videoId + "_", ".mp4", appDir);
             
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                     .bucket(bucketName)
