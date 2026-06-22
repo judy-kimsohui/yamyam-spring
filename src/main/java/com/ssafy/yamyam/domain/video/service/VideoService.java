@@ -1,11 +1,14 @@
 package com.ssafy.yamyam.domain.video.service;
 
+import com.ssafy.yamyam.domain.nutrition.service.VideoAnalysisService;
 import com.ssafy.yamyam.domain.video.dto.VideoDto;
 import com.ssafy.yamyam.domain.video.mapper.VideoMapper;
 import com.ssafy.yamyam.domain.video.model.Video;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
@@ -18,36 +21,45 @@ public class VideoService {
 
     private final VideoMapper videoMapper;
     private final VideoStorage videoStorage;
-    private final VideoAnalysisService analysisService;
+
+    private final VideoAnalysisService videoAnalysisService;
+
 
     @Transactional
     public VideoDto uploadVideo(Long userId, Long teamId, String mealType,
                                 String mealDate, String description, MultipartFile videoFile) {
         String stored = videoStorage.save(videoFile);
 
-        Video video = new Video();
-        video.setUserId(userId);
-        video.setTeamId(teamId);
-        video.setMealType(mealType.toUpperCase());
-        video.setMealDate(LocalDate.parse(mealDate));
-        video.setVideoUrl(stored);
-        video.setDescription(description);
+        try {
+            Video video = new Video();
+            video.setUserId(userId);
+            video.setTeamId(teamId);
+            video.setMealType(mealType.toUpperCase());
+            video.setMealDate(LocalDate.parse(mealDate));
+            video.setVideoUrl(stored);
+            video.setDescription(description);
 
-        videoMapper.insertVideo(video);
+            // 2. DB 저장 (MyBatis가 selectKey 등으로 video.setId()를 채워준다고 가정)
+            videoMapper.insertVideo(video);
 
-        analysisService.analyze(description, mealType).ifPresent(r -> {
-            video.setCalories(r.getCalories());
-            video.setCarbs(r.getCarbs());
-            video.setProtein(r.getProtein());
-            video.setFat(r.getFat());
-            video.setAiComment(r.getComment());
-            videoMapper.updateAnalysis(video);
-        });
 
-        VideoDto dto = buildDto(video);
-        dto.setVideoUrl(videoStorage.toUrl(stored));
-        dto.setUploaderNickName(null);
-        return dto;
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    videoAnalysisService.analyzeAsync(video.getId(), stored);
+                }
+            });
+
+           
+            VideoDto dto = buildDto(video);
+            dto.setVideoUrl(videoStorage.toUrl(stored)); // 프론트엔드용 URL 변환
+            return dto;
+
+        } catch (Exception e) {
+            // DB 작업 중 에러 발생 시, 스토리지에 저장했던 파일도 롤백(삭제) 처리하여 좀비 파일 방지
+            videoStorage.delete(stored);
+            throw e; // 예외를 다시 던져 트랜잭션 롤백 유도
+        }
     }
 
     public VideoDto getVideoById(Long id, Long loginUserId) {
