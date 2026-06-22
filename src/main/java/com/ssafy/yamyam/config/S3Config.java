@@ -36,7 +36,7 @@ public class S3Config {
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(accessKey, secretKey)
                 ))
-                // 🌟 아파치 HTTP 클라이언트 빌더를 명시적으로 지정합니다. (이게 AWS 정석 표준 프로토콜입니다)
+                //  아파치 HTTP 클라이언트 빌더를 명시적으로 지정합니다. (이게 AWS 정석 표준 프로토콜입니다)
                 .httpClientBuilder(software.amazon.awssdk.http.apache.ApacheHttpClient.builder())
                 .build();
     }

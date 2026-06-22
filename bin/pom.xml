@@ -8,9 +8,9 @@
 		<version>3.5.14</version>
 		<relativePath/> </parent>
 	<groupId>com.ssafy.yamyam</groupId>
-	<artifactId>yumyum-backend</artifactId>
+	<artifactId>yamyam-backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>yumyum-backend</name>
+	<name>yamyam-backend</name>
 	<description>yamyam</description>
 	<url/>
 	<licenses>

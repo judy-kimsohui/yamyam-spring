@@ -14,8 +14,10 @@ import com.ssafy.yamyam.domain.user.model.User;
 import com.ssafy.yamyam.domain.user.service.UserService;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -27,6 +29,20 @@ public class TeamService {
     public TeamService(TeamMapper teamMapper, UserService userService) {
         this.teamMapper = teamMapper;
         this.userService = userService;
+    }
+
+    public Map<String, Object> getTeamPreviewByInviteCode(String inviteCode) {
+        Team team = teamMapper.findTeamByInviteCode(inviteCode);
+        if (team == null) {
+            throw new IllegalArgumentException("유효하지 않은 초대 코드입니다.");
+        }
+        int memberCount = teamMapper.countTeamMembers(team.getId());
+        Map<String, Object> preview = new java.util.LinkedHashMap<>();
+        preview.put("teamName", team.getTeamName());
+        preview.put("memberCount", memberCount);
+        preview.put("capacity", team.getCapacity());
+        preview.put("inviteCode", inviteCode);
+        return preview;
     }
 
     public TeamDetailResponseDto getTeamDetail(Long id) {

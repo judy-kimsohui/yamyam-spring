@@ -22,7 +22,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // /videos/** → classpath 더미 영상 OR 유저 업로드 영상 (순서대로 탐색)
+        // /videos/** -> classpath 더미 영상 OR 유저 업로드 영상 (순서대로 탐색)
         registry.addResourceHandler("/videos/**")
                 .addResourceLocations(
                         "classpath:/static/videos/",
@@ -44,6 +44,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/api/**", "/graphql")
-                .excludePathPatterns("/api/users/login", "/api/users/signup");
+                .excludePathPatterns("/api/users/login", "/api/users/signup", "/api/teams/invite/**");
     }
 }

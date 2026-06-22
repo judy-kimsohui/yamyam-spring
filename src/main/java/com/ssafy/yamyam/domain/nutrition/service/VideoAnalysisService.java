@@ -7,6 +7,7 @@ import com.ssafy.yamyam.domain.nutrition.model.NutritionAnalysis;
 import com.ssafy.yamyam.domain.nutrition.model.RecognizedFoodItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.scheduling.annotation.Async;
@@ -17,7 +18,6 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 import java.io.File;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -29,8 +29,15 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class VideoAnalysisService {
 
-    @Value("${cloud.aws.s3.bucket}")
+    // prod 프로파일에서만 S3Client 빈이 생성되므로 optional 주입
+    @Autowired(required = false)
+    private S3Client s3Client;
+
+    @Value("${cloud.aws.s3.bucket:}")
     private String bucket;
+
+    @Value("${yamyam.video.upload-dir:src/main/resources/static/videos}")
+    private String uploadDir;
 
     @Value("${spring.ai.openai.base-url:https://gms.ssafy.io/gmsapi}")
     private String gmsBaseUrl;
@@ -38,7 +45,6 @@ public class VideoAnalysisService {
     @Value("${spring.ai.openai.api-key}")
     private String gmsApiKey;
 
-    private final S3Client s3Client;
     private final NutritionMapper nutritionMapper;
     private final VideoFrameExtractor frameExtractor;
     private final ObjectMapper objectMapper;
@@ -87,53 +93,61 @@ public class VideoAnalysisService {
         nutritionMapper.insertNutritionAnalysis(analysis);
 
         File tempVideoFile = null;
+        boolean isS3Download = false;
 
         try {
-            String bucketName = this.bucket; // 기본 설정 파일 버킷명 주입
-            String s3Key = storedVideoPath;  // 기본 경로 바인딩
+            boolean isLocalPath = storedVideoPath.startsWith("/videos/");
 
-            // 1. S3 URI 및 HTTP URL 포맷 정밀 정제
-            if (storedVideoPath.startsWith("s3://")) {
-                java.net.URI uri = new java.net.URI(storedVideoPath);
-                bucketName = uri.getHost();
-                String path = uri.getPath();
-                s3Key = path.startsWith("/") ? path.substring(1) : path;
-            } 
-            else if (storedVideoPath.startsWith("http://") || storedVideoPath.startsWith("https://")) {
-                java.net.URI uri = new java.net.URI(storedVideoPath);
-                String host = uri.getHost();
-                if (host != null && host.contains(".")) {
-                    bucketName = host.split("\\.")[0];
+            if (isLocalPath) {
+                // -- dev: 로컬 디스크에서 직접 읽기 ------------------------------
+                File folder = new File(uploadDir).isAbsolute()
+                        ? new File(uploadDir)
+                        : new File(System.getProperty("user.dir"), uploadDir);
+                String filename = storedVideoPath.substring("/videos/".length());
+                File localFile = new File(folder, filename);
+                storedVideoPath = localFile.getAbsolutePath();
+                log.info("[영양분석] videoId={} 로컬 파일 분석 시작: {}", videoId, storedVideoPath);
+            } else {
+                // -- prod: S3에서 임시 다운로드 -----------------------------------
+                if (s3Client == null) {
+                    throw new IllegalStateException("S3Client 빈이 없습니다. prod 프로파일로 실행하세요.");
                 }
-                
-                if (storedVideoPath.contains("videos/")) {
-                    s3Key = storedVideoPath.substring(storedVideoPath.indexOf("videos/"));
-                    if (s3Key.contains("?")) {
-                        s3Key = s3Key.substring(0, s3Key.indexOf("?"));
-                    }
-                } else {
+
+                String bucketName = this.bucket;
+                String s3Key = storedVideoPath;
+
+                if (storedVideoPath.startsWith("s3://")) {
+                    java.net.URI uri = new java.net.URI(storedVideoPath);
+                    bucketName = uri.getHost();
                     String path = uri.getPath();
                     s3Key = path.startsWith("/") ? path.substring(1) : path;
+                } else if (storedVideoPath.startsWith("http://") || storedVideoPath.startsWith("https://")) {
+                    java.net.URI uri = new java.net.URI(storedVideoPath);
+                    String host = uri.getHost();
+                    if (host != null && host.contains(".")) bucketName = host.split("\\.")[0];
+                    if (storedVideoPath.contains("videos/")) {
+                        s3Key = storedVideoPath.substring(storedVideoPath.indexOf("videos/"));
+                        if (s3Key.contains("?")) s3Key = s3Key.substring(0, s3Key.indexOf("?"));
+                    } else {
+                        String path = uri.getPath();
+                        s3Key = path.startsWith("/") ? path.substring(1) : path;
+                    }
                 }
+
+                log.info("[영양분석] videoId={} S3 다운로드 시작 (Bucket: {}, Key: {})", videoId, bucketName, s3Key);
+                File appDir = new File(System.getProperty("user.dir"));
+                String tempFileName = "s3_video_" + videoId + "_" + System.currentTimeMillis() + ".mp4";
+                tempVideoFile = new File(appDir, tempFileName);
+                isS3Download = true;
+
+                GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(s3Key)
+                        .build();
+                s3Client.getObject(getObjectRequest, software.amazon.awssdk.core.sync.ResponseTransformer.toFile(tempVideoFile));
+                storedVideoPath = tempVideoFile.getAbsolutePath();
+                log.info("[영양분석] videoId={} S3 다운로드 완료 -> OpenCV 프레임 추출 시작", videoId);
             }
-
-            log.info("[영양분석] videoId={} S3 원격 다운로드 파이프라인 시동 (Bucket: {}, Key: {})", videoId, bucketName, s3Key);
-
-            // 🌟 [정석 해결 포인트] 파일을 미리 생성하지 않고 경로만 추상적으로 지정 (물리 파일 생성 X)
-            File appDir = new File(System.getProperty("user.dir"));
-            String tempFileName = "s3_video_" + videoId + "_" + System.currentTimeMillis() + ".mp4";
-            tempVideoFile = new File(appDir, tempFileName); 
-            
-            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(s3Key)
-                    .build();
-
-            // 🌟 디스크에 파일이 없는 상태이므로 AWS SDK가 에러 없이 파일을 직접 개설하며 스트림을 씁니다.
-            s3Client.getObject(getObjectRequest, software.amazon.awssdk.core.sync.ResponseTransformer.toFile(tempVideoFile));
-            storedVideoPath = tempVideoFile.getAbsolutePath();
-
-            log.info("[영양분석] videoId={} 디스크 이식 성공 -> OpenCV 프레임 추출 시작", videoId);
             List<byte[]> frames = frameExtractor.extractFrames(storedVideoPath);
 
             if (frames == null || frames.isEmpty()) {
@@ -234,10 +248,10 @@ public class VideoAnalysisService {
             analysis.setErrorMessage(e.getMessage());
             nutritionMapper.updateNutritionAnalysis(analysis);
         } finally {
-            // 호스트 디스크 스토리지 누수 방지를 위한 임시 비디오 즉시 소거
-            if (tempVideoFile != null && tempVideoFile.exists()) {
+            // S3에서 내려받은 임시 파일만 삭제 (로컬 원본 파일은 건드리지 않음)
+            if (isS3Download && tempVideoFile != null && tempVideoFile.exists()) {
                 if (tempVideoFile.delete()) {
-                    log.info("[영양분석] videoId={} 로컬 가상 스왑 디스크 청소 완료", videoId);
+                    log.info("[영양분석] videoId={} S3 임시 파일 삭제 완료", videoId);
                 }
             }
         }

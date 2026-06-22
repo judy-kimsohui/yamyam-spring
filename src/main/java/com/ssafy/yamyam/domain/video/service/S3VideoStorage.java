@@ -52,7 +52,7 @@ public class S3VideoStorage implements VideoStorage {
         // 기존 로컬 경로(/videos/...)나 이미 완전한 URL은 그대로 반환
         if (stored.startsWith("/") || stored.startsWith("http")) return stored;
 
-        // S3 key → presigned URL (1시간 유효)
+        // S3 key -> presigned URL (1시간 유효)
         PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(r ->
                 r.signatureDuration(Duration.ofHours(1))
                         .getObjectRequest(g -> g.bucket(bucket).key(stored))

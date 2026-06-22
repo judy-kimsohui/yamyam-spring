@@ -47,7 +47,7 @@ public class JwtInterceptor implements HandlerInterceptor {
             Claims claims = jwtUtil.extractClaims(token);
             Long loginUserKey = ((Number) claims.get("id")).longValue();
 
-            // 5. 💡 대박 중요: request 객체에 유저 고유 ID를 담아서 컨트롤러로 넘겨줌!
+            // 5.  대박 중요: request 객체에 유저 고유 ID를 담아서 컨트롤러로 넘겨줌!
             request.setAttribute("loginUserKey", loginUserKey);
             return true; // 컨트롤러 진입 허용
 

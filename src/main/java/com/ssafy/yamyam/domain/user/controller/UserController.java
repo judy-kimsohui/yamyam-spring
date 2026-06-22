@@ -53,7 +53,7 @@ public class UserController {
 
 
     // 2. 로그인 (POST /api/users/login)
-    // 💡 JSON 데이터를 받아야 하므로 @RequestBody를 꼭 붙여줍니다.
+    //  JSON 데이터를 받아야 하므로 @RequestBody를 꼭 붙여줍니다.
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDto loginDto) {
         try {
@@ -109,10 +109,10 @@ public class UserController {
 
     // UserController.java 파일 내부에 추가
 
-    @PutMapping("/profile") // 💡 프론트엔드의 axios.put("/api/users/profile") 요청을 여기서 받습니다.
+    @PutMapping("/profile") //  프론트엔드의 axios.put("/api/users/profile") 요청을 여기서 받습니다.
     public ResponseEntity<String> updateProfile(
             @RequestBody com.ssafy.yamyam.domain.user.dto.UserUpdateRequestDto updateDto,
-            jakarta.servlet.http.HttpServletRequest request) { // 💡 세션 대신 request 활용
+            jakarta.servlet.http.HttpServletRequest request) { //  세션 대신 request 활용
 
         Long loginUserKey = (Long) request.getAttribute("loginUserKey");
 

@@ -21,7 +21,7 @@ public class ChatController {
     private final ChatService chatService;
     private final SimpMessagingTemplate messaging;
 
-    // ── WebSocket: 메시지 수신 → MongoDB 저장 → 팀 전체에 브로드캐스트 ──
+    // -- WebSocket: 메시지 수신 -> MongoDB 저장 -> 팀 전체에 브로드캐스트 --
     @MessageMapping("/chat/{teamId}")
     public void handleMessage(
             @DestinationVariable Long teamId,
@@ -37,7 +37,7 @@ public class ChatController {
         messaging.convertAndSend("/topic/chat/" + teamId, saved);
     }
 
-    // ── REST: 최근 메시지 히스토리 조회 ──
+    // -- REST: 최근 메시지 히스토리 조회 --
     @GetMapping("/api/chat/{teamId}/messages")
     @ResponseBody
     public ResponseEntity<List<ChatMessageDto>> getHistory(@PathVariable Long teamId) {

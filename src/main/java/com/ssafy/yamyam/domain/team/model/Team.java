@@ -33,7 +33,7 @@ public class Team {
 	//그룹 참여 User
 	//private List<User> members;
 	
-	//방장의 
+	//방장의
 	private Long kingId;
 	
 	//생성 일자

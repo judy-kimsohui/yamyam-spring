@@ -70,7 +70,7 @@ jobs:
 
           # 파일 전송 (JAR은 app.jar 이름으로 덮어씀)
           scp -i key.pem $OPT \
-            target/yumyum-backend-0.0.1-SNAPSHOT.jar \
+            target/yamyam-backend-0.0.1-SNAPSHOT.jar \
             ubuntu@$HOST:/home/ubuntu/app/app.jar
           scp -i key.pem $OPT \
             docker-compose.yml \

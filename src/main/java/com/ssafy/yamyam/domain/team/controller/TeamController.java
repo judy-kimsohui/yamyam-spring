@@ -56,6 +56,15 @@ public class TeamController {
         }
     }
 
+    @GetMapping("/invite/{inviteCode}")
+    public ResponseEntity<?> getTeamByInviteCode(@PathVariable("inviteCode") String inviteCode) {
+        try {
+            return ResponseEntity.ok(teamService.getTeamPreviewByInviteCode(inviteCode));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PostMapping("/join")
     public ResponseEntity<?> joinTeam(@Valid @RequestBody TeamJoinRequestDto requestDto, HttpServletRequest request) {
         Long loginUserKey = (Long) request.getAttribute("loginUserKey");
