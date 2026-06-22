@@ -13,8 +13,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+// 🌟 AWS v2 라이브러리 임포트
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -35,6 +39,8 @@ public class VideoAnalysisService {
     @Value("${spring.ai.openai.api-key}")
     private String gmsApiKey;
 
+    // 🌟 S3 Config에서 생성한 빈을 그대로 주입받습니다.
+    private final S3Client s3Client;
     private final NutritionMapper nutritionMapper;
     private final VideoFrameExtractor frameExtractor;
     private final ObjectMapper objectMapper;
@@ -63,9 +69,39 @@ public class VideoAnalysisService {
         analysis.setStatus(NutritionAnalysis.Status.PENDING);
         nutritionMapper.insertNutritionAnalysis(analysis);
 
+        File tempVideoFile = null;
+
         try {
+            String targetPath = storedVideoPath;
+
+            // 🌟 S3 원격 경로(HTTP) 감지 시 SDK를 이용한 다운로드 파이프라인 가동
+            if (storedVideoPath.startsWith("http://") || storedVideoPath.startsWith("https://")) {
+                log.info("[영양분석] videoId={} S3 웹 주소 감지 -> SDK 다운로드 시작: {}", videoId, storedVideoPath);
+
+                // 1. URL 구조에서 버킷명과 S3 내부 Key 오브젝트 명칭 파싱
+                // 예: https://yamyam-bucket.s3.ap-northeast-2.amazonaws.com/videos/test.mp4
+                java.net.URI uri = new java.net.URI(storedVideoPath);
+                String host = uri.getHost(); // yamyam-bucket.s3.ap-northeast-2.amazonaws.com
+                String bucketName = host.split("\\.")[0]; // yamyam-bucket
+                String s3Key = uri.getPath().substring(1); // 앞의 '/' 제거하여 'videos/test.mp4' 획득
+
+                // 2. /tmp 공간에 임시 로컬 파일 버퍼 서프 생성
+                tempVideoFile = File.createTempFile("s3_video_" + videoId + "_", ".mp4");
+
+                // 3. s3Client 빈을 사용하여 안정적으로 로컬 다운로드 복사 수행
+                GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(s3Key)
+                        .build();
+
+                s3Client.getObject(getObjectRequest, Paths.get(tempVideoFile.getAbsolutePath()));
+                
+                targetPath = tempVideoFile.getAbsolutePath();
+                log.info("[영양분석] videoId={} SDK 활용 S3 파일 다운로드 완료 -> 로컬 임시 경로: {}", videoId, targetPath);
+            }
+
             log.info("[영양분석] videoId={} 프레임 추출 시작", videoId);
-            List<byte[]> frames = frameExtractor.extractFrames(storedVideoPath);
+            List<byte[]> frames = frameExtractor.extractFrames(targetPath);
 
             if (frames == null || frames.isEmpty()) {
                 throw new RuntimeException("비디오 파일에서 유효한 이미지 프레임을 추출하지 못했습니다.");
@@ -95,10 +131,6 @@ public class VideoAnalysisService {
             messagePayload.put("role", "user");
             messagePayload.put("content", contentList);
 
-            // ✅ [핵심 수정] LinkedHashMap으로 필드 순서를 고정해서 "model"이 항상
-            //    거대한 base64 이미지 블록(messages)보다 먼저 직렬화되도록 보장.
-            //    Map.of()는 JVM 실행마다 랜덤한 순서로 직렬화되어, "model"이 뒤로 밀리면
-            //    GMS 게이트웨이가 라우팅용 model 필드를 못 찾고 400을 반환했음.
             Map<String, Object> requestBody = new LinkedHashMap<>();
             requestBody.put("model", "gpt-4o");
             requestBody.put("messages", List.of(messagePayload));
@@ -168,14 +200,16 @@ public class VideoAnalysisService {
             analysis.setStatus(NutritionAnalysis.Status.FAILED);
             analysis.setErrorMessage(e.getMessage());
             nutritionMapper.updateNutritionAnalysis(analysis);
+        } finally {
+            // 🌟 다 쓰고 난 EC2 임시 디렉토리 메모리 버퍼 찌꺼기 정리
+            if (tempVideoFile != null && tempVideoFile.exists()) {
+                tempVideoFile.delete();
+            }
         }
     }
 
-    private File resolveVideoFile(String filename) {
-        File dir = new File(uploadDir).isAbsolute()
-                ? new File(uploadDir)
-                : new File(System.getProperty("user.dir"), uploadDir);
-        return new File(dir, filename);
+    private double nullSafe(Double val) {
+        return val == null ? 0.0 : val;
     }
 
     private List<RecognizedFoodItem> parseAnalysisResult(String json, Long analysisId) {
@@ -207,9 +241,5 @@ public class VideoAnalysisService {
         if (val instanceof Number) return ((Number) val).doubleValue();
         try { return Double.parseDouble(val.toString()); }
         catch (NumberFormatException e) { return 0.0; }
-    }
-
-    private double nullSafe(Double val) {
-        return val == null ? 0.0 : val;
     }
 }
