@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.yamyam.domain.video.mapper.LogMapper">
+
+    <select id="findDailyNutrientSum" resultType="com.ssafy.yamyam.domain.video.dto.DailyDietSummaryDto">
+        SELECT 
+            IFNULL(SUM(na.total_calories), 0.0) AS totalCalories,
+            IFNULL(SUM(na.total_carbs), 0.0)    AS totalCarbs,
+            IFNULL(SUM(na.total_protein), 0.0)  AS totalProtein,
+            IFNULL(SUM(na.total_fat), 0.0)      AS totalFat
+        FROM VIDEOS v
+        JOIN NUTRITION_ANALYSIS na ON v.id = na.video_id
+        WHERE v.user_id = #{userId}
+          AND v.meal_date = #{targetDate}
+          AND na.status = 'DONE' </select>
+
+    <select id="findDailyFoodNames" resultType="string">
+        SELECT rfi.food_name
+        FROM VIDEOS v
+        JOIN NUTRITION_ANALYSIS na ON v.id = na.video_id
+        JOIN RECOGNIZED_FOOD_ITEM rfi ON na.id = rfi.nutrition_analysis_id
+        WHERE v.user_id = #{userId}
+          AND v.meal_date = #{targetDate}
+          AND na.status = 'DONE'
+    </select>
+
+    <select id="findDailyWeight" resultType="java.lang.Double">
+        SELECT recorded_weight
+        FROM WEIGHT_HISTORY
+        WHERE user_id = #{userId}
+          AND recorded_date = #{targetDate}
+        LIMIT 1 -- 하루에 혹시 여러 번 적었더라도 대표값 1개만 매핑
+    </select>
+    
+    <insert id="upsertDailyReport">
+        INSERT INTO DAILY_DIET_REPORT (user_id, report_date, ai_daily_feedback)
+        VALUES (#{userId}, #{reportDate}, #{feedback})
+        ON DUPLICATE KEY UPDATE
+            ai_daily_feedback = #{feedback},
+            updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <select id="findAiFeedback" resultType="string">
+        SELECT ai_daily_feedback
+        FROM DAILY_DIET_REPORT
+        WHERE user_id = #{userId}
+          AND report_date = #{targetDate}  
+    </select>
+          
+    <select id="findNutrientTrendByPeriod" resultType="com.ssafy.yamyam.domain.video.dto.PeriodNutrientTrendDto">
+        SELECT 
+            v.meal_date                         AS date,
+            IFNULL(SUM(na.total_calories), 0.0) AS dailyCalories,
+            IFNULL(SUM(na.total_carbs), 0.0)    AS dailyCarbs,
+            IFNULL(SUM(na.total_protein), 0.0)  AS dailyProtein,
+            IFNULL(SUM(na.total_fat), 0.0)      AS dailyFat
+        FROM VIDEOS v
+        JOIN NUTRITION_ANALYSIS na ON v.id = na.video_id
+        WHERE v.user_id = #{userId}
+          AND v.meal_date BETWEEN #{startDate} AND #{endDate}
+          AND na.status = 'DONE'
+        GROUP BY v.meal_date
+        ORDER BY v.meal_date ASC
+    </select>
+
+</mapper>
