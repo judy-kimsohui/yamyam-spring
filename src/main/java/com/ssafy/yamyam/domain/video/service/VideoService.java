@@ -32,37 +32,42 @@ public class VideoService {
     @Transactional
     public VideoDto uploadVideo(Long userId, Long teamId, String mealType,
                                 String mealDate, String description, MultipartFile videoFile) {
-        String stored = videoStorage.save(videoFile);
+        String stored = videoStorage.save(videoFile); //
 
         try {
-            Video video = new Video();
-            video.setUserId(userId);
-            video.setTeamId(teamId);
-            video.setMealType(mealType.toUpperCase());
-            video.setMealDate(LocalDate.parse(mealDate));
-            video.setVideoUrl(stored);
-            video.setDescription(description);
+            Video video = new Video(); //
+            video.setUserId(userId); //
+            video.setTeamId(teamId); //
+            video.setMealType(mealType.toUpperCase()); //
+            video.setMealDate(LocalDate.parse(mealDate)); //
+            video.setVideoUrl(stored); //
+            video.setDescription(description); //
 
-            // 2. DB 저장 (MyBatis가 selectKey 등으로 video.setId()를 채워준다고 가정)
-            videoMapper.insertVideo(video);
+            // 1. VIDEOS 테이블 저장 (video.setId() 발급)
+            videoMapper.insertVideo(video); //
 
+            // 🌟 [추가: 영양소 테이블 PENDING 상태 조기 선점] 
+            // 프론트엔드가 업로드 직후 바로 조회 쿼리를 날려도 null이 안 뜨도록 원천 차단합니다.
+            NutritionAnalysis initialAnalysis = new NutritionAnalysis();
+            initialAnalysis.setVideoId(video.getId());
+            initialAnalysis.setStatus(NutritionAnalysis.Status.PENDING);
+            nutritionMapper.insertNutritionAnalysis(initialAnalysis);
 
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() { //
                 @Override
-                public void afterCommit() {
-                    videoAnalysisService.analyzeAsync(video.getId(), stored);
-                }
-            });
+                public void afterCommit() { //
+                    videoAnalysisService.analyzeAsync(video.getId(), stored); //
+                } //
+            }); //
 
+            VideoDto dto = buildDto(video); //
+            dto.setVideoUrl(videoStorage.toUrl(stored));  //
+            dto.setStatus("PENDING"); // 🌟 즉시 리턴되는 응답 객체에도 PENDING 주입
+            return dto; //
 
-            VideoDto dto = buildDto(video);
-            dto.setVideoUrl(videoStorage.toUrl(stored)); // 프론트엔드용 URL 변환
-            return dto;
-
-        } catch (Exception e) {
-            // DB 작업 중 에러 발생 시, 스토리지에 저장했던 파일도 롤백(삭제) 처리하여 좀비 파일 방지
-            videoStorage.delete(stored);
-            throw e; // 예외를 다시 던져 트랜잭션 롤백 유도
+        } catch (Exception e) { //
+            videoStorage.delete(stored); //
+            throw e;  //
         }
     }
 

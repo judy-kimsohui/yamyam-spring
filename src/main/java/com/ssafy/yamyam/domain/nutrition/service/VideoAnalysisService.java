@@ -72,20 +72,25 @@ public class VideoAnalysisService {
     	    }
     	    """;
 
-    @Async("analysisExecutor")
-    public void analyzeAsync(Long videoId, String storedVideoPath) {
-        if (storedVideoPath == null) {
-            log.error("[영양분석] videoId={} 비디오 경로가 널(null)입니다.", videoId);
-            return;
+    @Async("analysisExecutor") //
+    public void analyzeAsync(Long videoId, String storedVideoPath) { //
+        if (storedVideoPath == null) { //
+            log.error("[영양분석] videoId={} 비디오 경로가 널(null)입니다.", videoId); //
+            return; //
+        } //
+
+        // 🌟 [수정]: insert 대신 이미 VideoService에서 심어놓은 엔티티 데이터를 SELECT로 획득합니다.
+        NutritionAnalysis analysis = nutritionMapper.findByVideoId(videoId);
+        if (analysis == null) {
+            // 혹시 모를 예외 방어용 가드
+            analysis = new NutritionAnalysis();
+            analysis.setVideoId(videoId);
+            analysis.setStatus(NutritionAnalysis.Status.PENDING);
+            nutritionMapper.insertNutritionAnalysis(analysis);
         }
 
-        NutritionAnalysis analysis = new NutritionAnalysis();
-        analysis.setVideoId(videoId);
-        analysis.setStatus(NutritionAnalysis.Status.PENDING);
-        nutritionMapper.insertNutritionAnalysis(analysis);
-
-        File videoFile = null;
-        boolean isTemporaryFile = false;
+        File videoFile = null; //
+        boolean isTemporaryFile = false; //
 
         try {
             videoFile = nutritionVideoResolver.resolveVideoFile(videoId, storedVideoPath);
