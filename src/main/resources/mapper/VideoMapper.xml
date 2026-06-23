@@ -16,11 +16,15 @@
     </sql>
 
     <sql id="nutritionColumns">
-        na.total_calories AS calories,
-        na.total_carbs    AS carbs,
-        na.total_protein  AS protein,
-        na.total_fat      AS fat,
-        na.foods_json     AS aiComment
+        IFNULL(na.total_calories, 0.0)  AS calories,
+        IFNULL(na.total_carbs, 0.0)     AS carbs,
+        IFNULL(na.total_protein, 0.0)   AS protein,
+        IFNULL(na.total_fat, 0.0)       AS fat,
+        na.foods_json                   AS aiComment,
+        CASE 
+            WHEN na.status IS NULL THEN 'PENDING'
+            ELSE CAST(na.status AS CHAR)
+        END AS status
     </sql>
 
     <insert id="insertVideo" parameterType="com.ssafy.yamyam.domain.video.model.Video"

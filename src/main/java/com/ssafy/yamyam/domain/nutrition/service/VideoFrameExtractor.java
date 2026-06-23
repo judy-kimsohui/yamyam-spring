@@ -27,7 +27,7 @@ public class VideoFrameExtractor {
     @Value("${yamyam.video.upload-dir}")
     private String uploadDir;
 
-    //  GMS 게이트웨이 바디 크기 제한 회피용 - 프레임당 목표 최대 용량
+    // ✅ GMS 게이트웨이 바디 크기 제한 회피용 — 프레임당 목표 최대 용량
     private static final int TARGET_MAX_BYTES = 25 * 1024; // 25KB
 
     public List<byte[]> extractFrames(String stored) throws IOException {
@@ -109,8 +109,8 @@ public class VideoFrameExtractor {
         return frames;
     }
 
-    //  추가: 목표 용량(TARGET_MAX_BYTES) 이하가 될 때까지 품질을 낮춰가며 재압축.
-    //    화면이 복잡한(다운로드한) 영상이라도 항상 일정 크기 이하로 보장 -> GMS 바디 크기 제한 회피
+    // ✅ 추가: 목표 용량(TARGET_MAX_BYTES) 이하가 될 때까지 품질을 낮춰가며 재압축.
+    //    화면이 복잡한(다운로드한) 영상이라도 항상 일정 크기 이하로 보장 → GMS 바디 크기 제한 회피
     private byte[] compressToTargetSize(BufferedImage image) throws IOException {
         float quality = 0.6f;
         byte[] result = encodeJpeg(image, quality);
