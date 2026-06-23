@@ -107,13 +107,21 @@ public class UserService {
 
         user.setNickName(updateDto.getNickName());
         user.setAge(updateDto.getAge());
-        user.setGender(User.Gender.MALE);
+        user.setUserGoal(updateDto.getUserGoal());
+        // 성별
+        try {
+            user.setGender(updateDto.getGender() != null ? User.Gender.valueOf(updateDto.getGender().toUpperCase()) : User.Gender.NONE);
+        } catch (IllegalArgumentException e) {
+            user.setGender(User.Gender.NONE);
+        }
         user.setHeight(updateDto.getHeight());
         user.setWeight(updateDto.getWeight());
         user.setGoalWeight(updateDto.getGoalWeight());
 
-        userMapper.updateUserProfile(user);
-
+        int updated = userMapper.updateUserProfile(user);
+        if (updated == 0) {
+            throw new IllegalStateException("프로필 업데이트에 실패했습니다. (id=" + id + ")");
+        }
     }
 
     public UserDto findUserById(Long loginUserKey) {
@@ -130,7 +138,7 @@ public class UserService {
         dto.setHeight(user.getHeight());
         dto.setWeight(user.getWeight());
         dto.setGoal_weight(user.getGoalWeight());
-        dto.setUser_goal("");
+        dto.setUser_goal(user.getUserGoal() != null ? user.getUserGoal() : "");
 
         return dto;
     }

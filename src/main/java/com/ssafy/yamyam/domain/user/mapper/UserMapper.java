@@ -16,5 +16,5 @@ public interface UserMapper {
 
     User findById(Long id);
 
-    void updateUserProfile(User user);
+    int updateUserProfile(User user);
 }

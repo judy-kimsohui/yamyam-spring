@@ -109,20 +109,26 @@ public class UserController {
 
     // UserController.java 파일 내부에 추가
 
-    @PutMapping("/profile") //  프론트엔드의 axios.put("/api/users/profile") 요청을 여기서 받습니다.
+    // 프로필 수정
+    @PutMapping("/profile")
     public ResponseEntity<String> updateProfile(
             @RequestBody com.ssafy.yamyam.domain.user.dto.UserUpdateRequestDto updateDto,
-            jakarta.servlet.http.HttpServletRequest request) { //  세션 대신 request 활용
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader) {
 
-        Long loginUserKey = (Long) request.getAttribute("loginUserKey");
-
-        if (loginUserKey == null) {
-            return org.springframework.http.ResponseEntity.status(401).body("인증 정보가 만료되었습니다.");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("인증 토큰이 누락되었거나 유효하지 않습니다.");
         }
 
         try {
+            String token = authHeader.substring(7);
+            if (jwtUtil.isTokenExpired(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("만료된 토큰입니다.");
+            }
+            Claims claims = jwtUtil.extractClaims(token);
+            Long loginUserKey = ((Number) claims.get("id")).longValue();
+
             userService.updateProfile(loginUserKey, updateDto);
-            return ResponseEntity.ok("프로필 정보가 안전하게 수정되었습니다.");
+            return ResponseEntity.ok("프로필이 수정되었습니다.");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {

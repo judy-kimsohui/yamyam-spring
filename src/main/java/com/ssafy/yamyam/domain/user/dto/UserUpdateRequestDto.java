@@ -7,6 +7,7 @@ import lombok.Data;
 public class UserUpdateRequestDto {
     private String nickName;
     private int age;
+    private String userGoal;
     private String gender;
     private double height;
     private double weight;

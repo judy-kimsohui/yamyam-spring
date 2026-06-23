@@ -194,3 +194,7 @@ VALUES
   (5,13),(5,17),(5,1),
   -- team 6: 혈당 조절방 (16,2,18,19,20,7,5)
   (6,16),(6,2),(6,18),(6,19),(6,20),(6,7),(6,5);
+
+-- NUTRITION_ANALYSIS 테이블에 retry_count 컬럼 추가 (기본값 0, NULL 허용 안 함)
+ALTER TABLE NUTRITION_ANALYSIS
+    ADD COLUMN retry_count INT NOT NULL DEFAULT 0;

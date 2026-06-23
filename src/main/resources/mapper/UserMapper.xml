@@ -11,14 +11,15 @@
     <update id="updateUserProfile" parameterType="com.ssafy.yamyam.domain.user.model.User">
         UPDATE USERS
         SET
-        nick_name = #{nickName},
-        profile_img = #{profileImg},
-        age = #{age},
-        gender = #{gender},
-        height = #{height},
-        weight = #{weight},
-        goal_weight = #{goalWeight},
-        user_goal = #{userGoal}  WHERE id = #{id}
+            nick_name   = #{nickName},
+            profile_img = #{profileImg},
+            age         = #{age},
+            gender      = #{gender},
+            height      = #{height},
+            weight      = #{weight},
+            goal_weight = #{goalWeight},
+            user_goal   = #{userGoal}
+        WHERE id = #{id}
     </update>
 
     <resultMap id="UserResultMap" type="com.ssafy.yamyam.domain.user.model.User">
