@@ -23,6 +23,9 @@ public class NutritionAnalysis {
     // Claude가 인식한 음식 목록 원본 JSON (파싱 전 보관)
     private String foodsJson;
 
+    // 재시도 횟수 (3회 초과 시 포기)
+    private Integer retryCount = 0;
+
     // 실패 시 에러 메시지
     private String errorMessage;
 

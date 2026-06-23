@@ -19,6 +19,7 @@
             total_protein  AS totalProtein,
             total_fat      AS totalFat,
             foods_json     AS foodsJson,
+            retry_count    AS retryCount,
             error_message  AS errorMessage,
             created_at     AS createdAt,
             updated_at     AS updatedAt
@@ -43,6 +44,12 @@
     <delete id="deleteByVideoId">
         DELETE FROM NUTRITION_ANALYSIS WHERE video_id = #{videoId}
     </delete>
+
+    <update id="resetToRetry">
+        UPDATE NUTRITION_ANALYSIS
+        SET status = 'PENDING', retry_count = retry_count + 1, updated_at = NOW()
+        WHERE video_id = #{videoId}
+    </update>
 
     <insert id="insertFoodItem" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO RECOGNIZED_FOOD_ITEM

@@ -41,15 +41,21 @@ public class NutritionController {
     @PostMapping("/{videoId}/analyze")
     public ResponseEntity<Void> triggerAnalysis(@PathVariable Long videoId) {
         NutritionAnalysis existing = nutritionMapper.findByVideoId(videoId);
-        if (existing != null && existing.getStatus() != NutritionAnalysis.Status.FAILED) {
-            return ResponseEntity.noContent().build();
+        if (existing != null) {
+            if (existing.getStatus() == NutritionAnalysis.Status.PENDING
+                    || existing.getStatus() == NutritionAnalysis.Status.DONE) {
+                return ResponseEntity.noContent().build();
+            }
+            // FAILED: 3회 초과 시 포기
+            int retryCount = existing.getRetryCount() != null ? existing.getRetryCount() : 0;
+            if (retryCount >= 3) {
+                return ResponseEntity.status(429).build();
+            }
+            nutritionMapper.resetToRetry(videoId); // PENDING으로 되돌리고 retry_count++
         }
         VideoDto video = videoMapper.findById(videoId, 0L);
         if (video == null) {
             return ResponseEntity.notFound().build();
-        }
-        if (existing != null) {
-            nutritionMapper.deleteByVideoId(videoId);
         }
         videoAnalysisService.analyzeAsync(videoId, video.getVideoUrl());
         return ResponseEntity.accepted().build();

@@ -17,6 +17,7 @@ public interface NutritionMapper {
 
     // recognized_food_item 테이블
     void deleteByVideoId(@Param("videoId") Long videoId);
+    void resetToRetry(@Param("videoId") Long videoId);
 
     void insertFoodItem(RecognizedFoodItem item);
     List<RecognizedFoodItem> findFoodItemsByAnalysisId(@Param("nutritionAnalysisId") Long nutritionAnalysisId);
