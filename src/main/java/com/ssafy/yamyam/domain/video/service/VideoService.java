@@ -197,44 +197,40 @@ public class VideoService {
         return summary;
     }
 
-    
+
     public NutrientGoalDto calculateUserNutrientGoal(Long userId) {
-        // 1. 유저 마스터 정보 획득
         com.ssafy.yamyam.domain.user.model.User user = userMapper.findById(userId);
-        
         NutrientGoalDto goal = new NutrientGoalDto();
-        
-        // 방어 가드: 유저 정보가 없거나 몸무게/키 입력이 누락된 경우 기본 표준 스펙(2000kcal) 지정
+
+        // 🌟 [방어 가드 수정]: 신체 데이터 스펙이 빈 값(0)이거나 누락 시 대한민국 성인 표준 스케일 균형 배정
         if (user == null || user.getWeight() <= 0 || user.getHeight() <= 0) {
-            goal.setTargetCalories(2000.0);
-            goal.setTargetCarbs(250.0);
-            goal.setTargetProtein(150.0);
-            goal.setTargetFat(44.0);
+            goal.setTargetCalories(2100.0);
+            goal.setTargetCarbs(290.0);   // 탄 55%
+            goal.setTargetProtein(105.0); // 단 20%
+            goal.setTargetFat(46.0);      // 지 20%
             return goal;
         }
 
         double weight = user.getWeight();
         double height = user.getHeight();
         int age = user.getAge();
-        
-        // 2. 해리스-베네딕트 공식을 통한 활동대사량(BMR * 활동계수 약 1.375) 산출
+
         double bmr = 0.0;
         if (user.getGender() == com.ssafy.yamyam.domain.user.model.User.Gender.MALE) {
             bmr = 66.47 + (13.75 * weight) + (5.0 * height) - (6.76 * age);
         } else if (user.getGender() == com.ssafy.yamyam.domain.user.model.User.Gender.FEMALE) {
             bmr = 655.1 + (9.56 * weight) + (1.85 * height) - (4.68 * age);
         } else {
-            bmr = 22 * weight * 30; // 성별 미지정 시 일반 표준 기초 대사 공식 적용
+            bmr = 22 * weight * 30;
         }
-        
-        double targetCalories = Math.round(bmr * 1.375); // 일반적인 활동량 계수 반영
+
+        double targetCalories = Math.round(bmr * 1.375);
         goal.setTargetCalories(targetCalories);
 
-        // 3. 탄단지 황금 비율(5:3:2)에 맞게 그람(g) 수 역산
-        // 탄수화물(4kcal/g), 단백질(4kcal/g), 지방(9kcal/g)
-        goal.setTargetCarbs(Math.round((targetCalories * 0.5) / 4.0));
-        goal.setTargetProtein(Math.round((targetCalories * 0.3) / 4.0));
-        goal.setTargetFat(Math.round((targetCalories * 0.2) / 9.0));
+        // 🌟 탄단지 영양학 균형 가우징 프로포션 조정 (55% : 20% : 25%) 역산 정합성 일치
+        goal.setTargetCarbs(Math.round((targetCalories * 0.55) / 4.0));
+        goal.setTargetProtein(Math.round((targetCalories * 0.20) / 4.0));
+        goal.setTargetFat(Math.round((targetCalories * 0.25) / 9.0));
 
         return goal;
     }
@@ -247,47 +243,51 @@ public class VideoService {
      */
     public DailyDashboardResponseDto getDailyDashboardReport(Long userId, String targetDate) {
         DailyDashboardResponseDto response = new DailyDashboardResponseDto();
-        
-        // ① 유저 권장 목표치 계산 및 바인딩
+
+        // ① 권장 가이드 목표 라인 바인딩
         NutrientGoalDto goal = calculateUserNutrientGoal(userId);
         response.setGoal(goal);
-        
-        // ② 해당 날짜 실시간 완료 데이터 계산 및 바인딩
+
+        // ② 해당 날짜 실시간 DONE 데이터 수집
         DailyDietSummaryDto summary = getDailyDietSummary(userId, targetDate);
         response.setSummary(summary);
-        
-        // ③ [산술 연산] 목표치 - 현재 누적 섭취량 (남은 잔여량)
-        response.setRemainCalories(goal.getTargetCalories() - summary.getTotalCalories());
-        response.setRemainCarbs(goal.getTargetCarbs() - summary.getTotalCarbs());
-        response.setRemainProtein(goal.getTargetProtein() - summary.getTotalProtein());
-        response.setRemainFat(goal.getTargetFat() - summary.getTotalFat());
-        
-        // ④ [실시간 규칙 기반 즉석 피드백 조립]
+
+        // ③ [산술 오류 해결]: 목표치 - 현재 누적 섭취량 = 순수 '남은 잔여량' 계산
+        // 부동 소수점 무한 루프 오차 타파 반올림 처리 진행
+        double remainCal = goal.getTargetCalories() - summary.getTotalCalories();
+        double remainCarb = goal.getTargetCarbs() - summary.getTotalCarbs();
+        double remainProtein = goal.getTargetProtein() - summary.getTotalProtein();
+        double remainFat = goal.getTargetFat() - summary.getTotalFat();
+
+        // 현재 섭취량이 목표를 이미 넘은 경우 음수 대신 0g 가드 안착
+        response.setRemainCalories(Math.max(0, Math.round(remainCal)));
+        response.setRemainCarbs(Math.max(0, Math.round(remainCarb * 10.0) / 10.0));
+        response.setRemainProtein(Math.max(0, Math.round(remainProtein * 10.0) / 10.0));
+        response.setRemainFat(Math.max(0, Math.round(remainFat * 10.0) / 10.0));
+
+        // ④ 수치 판정 규칙 기반 실시간 가이드 멘트 조립
         StringBuilder feedback = new StringBuilder();
         if (summary.getTotalCalories() == 0) {
             feedback.append("아직 오늘 기록된 식단이 없습니다. 먹은 첫 끼니의 영상을 공유해 보세요! 🍽️");
         } else {
             double calorieRatio = (summary.getTotalCalories() / goal.getTargetCalories()) * 100;
             feedback.append(String.format("오늘 목표 칼로리의 %.1f%%를 채우셨군요! ", calorieRatio));
-            
+
             if (summary.getTotalProtein() < goal.getTargetProtein() * 0.5) {
-                feedback.append("목표 대비 단백질 섭취가 많이 부족합니다. 다음 식사엔 단백질 위주로 챙겨보세요. 🥚");
-            } else if (summary.getTotalCarbs() > goal.getTargetCarbs() * 1.1) {
-                feedback.append("탄수화물 비율이 다소 높은 편입니다. 정제 탄수화물은 조금 제어해 보시는 걸 권장해요. 🛑");
+                feedback.append("목표 대비 단백질 섭취가 부족합니다. 다음 식사엔 단백질 위주로 보충해 보세요. 🥚");
+            } else if (summary.getTotalCarbs() > goal.getTargetCarbs() * 1.0) {
+                feedback.append("탄수화물 비율이 다소 높은 편입니다. 정제 탄수화물 섭취는 조금 제어해 보세요. 🛑");
             } else {
                 feedback.append("탄단지 영양 밸런스를 아주 훌륭하게 유지하며 식단 관리를 잘 수행하고 계십니다! ✨");
             }
         }
         response.setRuleFeedback(feedback.toString());
-        
-        // ⑤ 🌟 [신설]: 데이터베이스에 미리 저장된 1일 1회 정기 AI 피드백 총평 결합
-        // 사용자가 '어제 날짜' 탭을 누르거나 대시보드 진입 시 미리 구워진 리포트 텍스트가 있다면 가져옴
+
         String savedAiFeedback = logMapper.findAiFeedback(userId, targetDate);
         response.setAiDailyFeedback(savedAiFeedback != null ? savedAiFeedback : "해당 날짜의 AI 정기 리포트가 아직 생성되지 않았거나 없습니다.");
-        
+
         return response;
     }
-    
     public List<PeriodNutrientTrendDto> getNutrientTrend(Long userId, String startDate, String endDate) {
         List<PeriodNutrientTrendDto> trends = logMapper.findNutrientTrendByPeriod(userId, startDate, endDate);
         
