@@ -7,15 +7,12 @@ import com.ssafy.yamyam.domain.nutrition.model.NutritionAnalysis;
 import com.ssafy.yamyam.domain.nutrition.model.RecognizedFoodItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -29,22 +26,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class VideoAnalysisService {
 
-    // prod 프로파일에서만 S3Client 빈이 생성되므로 optional 주입
-    @Autowired(required = false)
-    private S3Client s3Client;
-
-    @Value("${cloud.aws.s3.bucket:}")
-    private String bucket;
-
-    @Value("${yamyam.video.upload-dir:src/main/resources/static/videos}")
-    private String uploadDir;
-
     @Value("${spring.ai.openai.base-url:https://gms.ssafy.io/gmsapi}")
     private String gmsBaseUrl;
 
     @Value("${spring.ai.openai.api-key}")
     private String gmsApiKey;
 
+    private final NutritionVideoResolver nutritionVideoResolver;
     private final NutritionMapper nutritionMapper;
     private final VideoFrameExtractor frameExtractor;
     private final ObjectMapper objectMapper;
@@ -65,7 +53,11 @@ public class VideoAnalysisService {
     	       - 액체의 색상, 층 분리(라떼류), 크림/토핑 유무, 투명도를 분석하여 음료의 종류(예: 아메리카노, 라떼, 스무디 등)를 판별하고 규격 사이즈 기준의 영양소를 산출하십시오.
     	    
     	    4. 수치를 10 단위로 뭉뚱그려 응답하지 말고, 최대한 실제 수치에 가깝게 정밀하게 추정하십시오 (예: 523, 42.5 등).
-    	    5. 음식이 전혀 보이지 않거나 식별이 불가능하면 foods를 빈 배열([])로 반환하십시오.
+    	    
+    	    5. [필수] 방어적 매핑 규칙:
+    	       - 이미지가 흐리거나 초점이 맞지 않아 음식을 확신할 수 없더라도 분석을 포기하거나 빈 배열([])을 반환하지 마십시오.
+    	       - 형태나 색상 등 시각적 단서(예: '빨간 국물 요리', '어두운 색의 볶음', '미상의 육류')를 기반으로 한국인들이 가장 흔히 먹는 유사한 대중적 표준 음식(예: '김치찌개', '제육볶음', '후라이드치킨')으로 강제 매핑하여 영양소를 최대한 추정해 채워 넣으십시오.
+    	       - 화면이 완전히 완전히 암전되거나 빈 그릇만 찍혀서 도저히 음식의 흔적조차 찾을 수 없는 극단적인 경우에만 foods를 빈 배열([])로 반환하십시오.
     	    
     	    {
     	      "foods": [
@@ -80,75 +72,35 @@ public class VideoAnalysisService {
     	    }
     	    """;
 
-    @Async("analysisExecutor")
-    public void analyzeAsync(Long videoId, String storedVideoPath) {
-        if (storedVideoPath == null) {
-            log.error("[영양분석] videoId={} 비디오 경로가 널(null)입니다.", videoId);
-            return;
+    @Async("analysisExecutor") //
+    public void analyzeAsync(Long videoId, String storedVideoPath) { //
+        if (storedVideoPath == null) { //
+            log.error("[영양분석] videoId={} 비디오 경로가 널(null)입니다.", videoId); //
+            return; //
+        } //
+
+        // 🌟 [수정]: insert 대신 이미 VideoService에서 심어놓은 엔티티 데이터를 SELECT로 획득합니다.
+        NutritionAnalysis analysis = nutritionMapper.findByVideoId(videoId);
+        if (analysis == null) {
+            // 혹시 모를 예외 방어용 가드
+            analysis = new NutritionAnalysis();
+            analysis.setVideoId(videoId);
+            analysis.setStatus(NutritionAnalysis.Status.PENDING);
+            nutritionMapper.insertNutritionAnalysis(analysis);
         }
 
-        NutritionAnalysis analysis = new NutritionAnalysis();
-        analysis.setVideoId(videoId);
-        analysis.setStatus(NutritionAnalysis.Status.PENDING);
-        nutritionMapper.insertNutritionAnalysis(analysis);
-
-        File tempVideoFile = null;
-        boolean isS3Download = false;
+        File videoFile = null; //
+        boolean isTemporaryFile = false; //
 
         try {
-            boolean isLocalPath = storedVideoPath.startsWith("/videos/");
-
-            if (isLocalPath) {
-                // -- dev: 로컬 디스크에서 직접 읽기 ------------------------------
-                File folder = new File(uploadDir).isAbsolute()
-                        ? new File(uploadDir)
-                        : new File(System.getProperty("user.dir"), uploadDir);
-                String filename = storedVideoPath.substring("/videos/".length());
-                File localFile = new File(folder, filename);
-                storedVideoPath = localFile.getAbsolutePath();
-                log.info("[영양분석] videoId={} 로컬 파일 분석 시작: {}", videoId, storedVideoPath);
-            } else {
-                // -- prod: S3에서 임시 다운로드 -----------------------------------
-                if (s3Client == null) {
-                    throw new IllegalStateException("S3Client 빈이 없습니다. prod 프로파일로 실행하세요.");
-                }
-
-                String bucketName = this.bucket;
-                String s3Key = storedVideoPath;
-
-                if (storedVideoPath.startsWith("s3://")) {
-                    java.net.URI uri = new java.net.URI(storedVideoPath);
-                    bucketName = uri.getHost();
-                    String path = uri.getPath();
-                    s3Key = path.startsWith("/") ? path.substring(1) : path;
-                } else if (storedVideoPath.startsWith("http://") || storedVideoPath.startsWith("https://")) {
-                    java.net.URI uri = new java.net.URI(storedVideoPath);
-                    String host = uri.getHost();
-                    if (host != null && host.contains(".")) bucketName = host.split("\\.")[0];
-                    if (storedVideoPath.contains("videos/")) {
-                        s3Key = storedVideoPath.substring(storedVideoPath.indexOf("videos/"));
-                        if (s3Key.contains("?")) s3Key = s3Key.substring(0, s3Key.indexOf("?"));
-                    } else {
-                        String path = uri.getPath();
-                        s3Key = path.startsWith("/") ? path.substring(1) : path;
-                    }
-                }
-
-                log.info("[영양분석] videoId={} S3 다운로드 시작 (Bucket: {}, Key: {})", videoId, bucketName, s3Key);
-                File appDir = new File(System.getProperty("user.dir"));
-                String tempFileName = "s3_video_" + videoId + "_" + System.currentTimeMillis() + ".mp4";
-                tempVideoFile = new File(appDir, tempFileName);
-                isS3Download = true;
-
-                GetObjectRequest getObjectRequest = GetObjectRequest.builder()
-                        .bucket(bucketName)
-                        .key(s3Key)
-                        .build();
-                s3Client.getObject(getObjectRequest, software.amazon.awssdk.core.sync.ResponseTransformer.toFile(tempVideoFile));
-                storedVideoPath = tempVideoFile.getAbsolutePath();
-                log.info("[영양분석] videoId={} S3 다운로드 완료 -> OpenCV 프레임 추출 시작", videoId);
+            videoFile = nutritionVideoResolver.resolveVideoFile(videoId, storedVideoPath);
+            
+            if (videoFile.getName().startsWith("s3_video_")) {
+                isTemporaryFile = true;
             }
-            List<byte[]> frames = frameExtractor.extractFrames(storedVideoPath);
+
+            log.info("[영양분석] videoId={} 프레임 추출 시작 -> 물리 경로: {}", videoId, videoFile.getAbsolutePath());
+            List<byte[]> frames = frameExtractor.extractFrames(videoFile.getAbsolutePath());
 
             if (frames == null || frames.isEmpty()) {
                 throw new RuntimeException("비디오 파일에서 유효한 이미지 프레임을 추출하지 못했습니다.");
@@ -248,10 +200,9 @@ public class VideoAnalysisService {
             analysis.setErrorMessage(e.getMessage());
             nutritionMapper.updateNutritionAnalysis(analysis);
         } finally {
-            // S3에서 내려받은 임시 파일만 삭제 (로컬 원본 파일은 건드리지 않음)
-            if (isS3Download && tempVideoFile != null && tempVideoFile.exists()) {
-                if (tempVideoFile.delete()) {
-                    log.info("[영양분석] videoId={} S3 임시 파일 삭제 완료", videoId);
+            if (isTemporaryFile && videoFile != null && videoFile.exists()) {
+                if (videoFile.delete()) {
+                    log.info("[영양분석] videoId={} 로컬 임시 다운로드 파일 소거 완료", videoId);
                 }
             }
         }

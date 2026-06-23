@@ -27,16 +27,21 @@ public class VideoFrameExtractor {
     @Value("${yamyam.video.upload-dir}")
     private String uploadDir;
 
-    //  GMS 게이트웨이 바디 크기 제한 회피용 - 프레임당 목표 최대 용량
+    // ✅ GMS 게이트웨이 바디 크기 제한 회피용 — 프레임당 목표 최대 용량
     private static final int TARGET_MAX_BYTES = 25 * 1024; // 25KB
 
     public List<byte[]> extractFrames(String stored) throws IOException {
         File videoFile;
 
-        //  [정밀 조율] S3에서 받아온 완전한 로컬 절대 경로가 들어온 경우, 복잡한 리졸브를 패스하고 직접 매핑
-        if (stored.startsWith("/") && stored.contains("_video_")) {
+        File directFile = new File(stored);
+        if (directFile.isAbsolute()) {
+            videoFile = directFile;
+        } 
+        // ⭕ [기존 prod 조건문 유지] S3 임시 파일 조건 분기
+        else if (stored.startsWith("/") && stored.contains("_video_")) {
             videoFile = new File(stored);
-        } else {
+        } 
+        else {
             // 기존 로컬 파일 검증 로직 하위 호환성 유지
             String filename = stored.replaceFirst("^/videos/", "");
             videoFile = resolveVideoFile(filename);
@@ -59,10 +64,11 @@ public class VideoFrameExtractor {
             double duration = grabber.getLengthInTime() / 1000000.0;
             if (duration <= 0) duration = 10.0;
 
-            List<Long> targetTimestamps = List.of(
-                    (long) ((duration / 3.0) * 1000000),
-                    (long) ((duration * 2.0 / 3.0) * 1000000)
-            );
+            List<Long> targetTimestamps = new ArrayList<>();
+            int frameCount = 3; // 4장 추출
+            for (int i = 1; i <= frameCount; i++) {
+                targetTimestamps.add((long) ((duration * i / (frameCount + 1)) * 1000000));
+            }
 
             Java2DFrameConverter converter = new Java2DFrameConverter();
 
@@ -103,8 +109,8 @@ public class VideoFrameExtractor {
         return frames;
     }
 
-    //  추가: 목표 용량(TARGET_MAX_BYTES) 이하가 될 때까지 품질을 낮춰가며 재압축.
-    //    화면이 복잡한(다운로드한) 영상이라도 항상 일정 크기 이하로 보장 -> GMS 바디 크기 제한 회피
+    // ✅ 추가: 목표 용량(TARGET_MAX_BYTES) 이하가 될 때까지 품질을 낮춰가며 재압축.
+    //    화면이 복잡한(다운로드한) 영상이라도 항상 일정 크기 이하로 보장 → GMS 바디 크기 제한 회피
     private byte[] compressToTargetSize(BufferedImage image) throws IOException {
         float quality = 0.6f;
         byte[] result = encodeJpeg(image, quality);
