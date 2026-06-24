@@ -91,4 +91,16 @@
       AND user_id = #{userId}
 </select>
 
+<select id="findDailyAiComment" resultType="string">
+    SELECT ai_comment
+    FROM daily_ai_comment
+    WHERE user_id = #{userId} AND record_date = #{recordDate}
+</select>
+
+<insert id="upsertDailyAiComment">
+    INSERT INTO daily_ai_comment (user_id, record_date, ai_comment)
+    VALUES (#{userId}, #{recordDate}, #{aiComment})
+    ON DUPLICATE KEY UPDATE ai_comment = #{aiComment}
+</insert>
+
 </mapper>

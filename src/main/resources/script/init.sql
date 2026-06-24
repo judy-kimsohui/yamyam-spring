@@ -198,3 +198,11 @@ VALUES
 -- NUTRITION_ANALYSIS 테이블에 retry_count 컬럼 추가 (기본값 0, NULL 허용 안 함)
 ALTER TABLE NUTRITION_ANALYSIS
     ADD COLUMN retry_count INT NOT NULL DEFAULT 0;
+
+
+CREATE TABLE daily_ai_comment (
+    user_id BIGINT NOT NULL,
+    record_date VARCHAR(10) NOT NULL, -- 예: '2026-06-24'
+    ai_comment TEXT NOT NULL,
+    PRIMARY KEY (user_id, record_date)
+);

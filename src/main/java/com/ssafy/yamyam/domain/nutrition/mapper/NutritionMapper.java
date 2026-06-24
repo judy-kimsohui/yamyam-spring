@@ -32,4 +32,11 @@ public interface NutritionMapper {
 	
     
     Object findDailyLogs(Long userId, String date);
+
+    String findDailyAiComment(@Param("userId") Long userId, @Param("recordDate") String recordDate);
+
+    // 일일 종합 코멘트 저장 (UPSERT)
+    void upsertDailyAiComment(@Param("userId") Long userId,
+                              @Param("recordDate") String recordDate,
+                              @Param("aiComment") String aiComment);
 }
