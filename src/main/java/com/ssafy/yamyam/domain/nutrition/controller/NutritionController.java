@@ -60,4 +60,12 @@ public class NutritionController {
         videoAnalysisService.analyzeAsync(videoId, video.getVideoUrl());
         return ResponseEntity.accepted().build();
     }
+    
+    @PutMapping("/{videoId}/nutrition")
+    public ResponseEntity<Void> updateNutrition(
+            @PathVariable Long videoId,
+            @RequestBody java.util.List<com.ssafy.yamyam.domain.nutrition.model.RecognizedFoodItem> newFoods) {
+        nutritionService.updateNutrition(videoId, newFoods);
+        return ResponseEntity.ok().build();
+    }
 }

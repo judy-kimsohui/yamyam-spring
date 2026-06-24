@@ -21,4 +21,8 @@ public interface NutritionMapper {
 
     void insertFoodItem(RecognizedFoodItem item);
     List<RecognizedFoodItem> findFoodItemsByAnalysisId(@Param("nutritionAnalysisId") Long nutritionAnalysisId);
+
+ // 기존 내용 유지 후 아래 메서드 추가
+    @org.apache.ibatis.annotations.Delete("DELETE FROM RECOGNIZED_FOOD_ITEM WHERE nutrition_analysis_id = #{analysisId}")
+    void deleteFoodItemsByAnalysisId(@org.apache.ibatis.annotations.Param("analysisId") Long analysisId);
 }

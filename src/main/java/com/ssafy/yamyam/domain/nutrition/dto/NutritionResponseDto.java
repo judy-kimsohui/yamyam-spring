@@ -28,6 +28,7 @@ public class NutritionResponseDto {
         private Double carbs;
         private Double protein;
         private Double fat;
+        private Double quantity;
     }
 
     public static NutritionResponseDto pending(Long videoId) {

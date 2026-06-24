@@ -15,4 +15,6 @@ public class RecognizedFoodItem {
     private Double carbs;
     private Double protein;
     private Double fat;
+    
+    private Double quantity = 1.0;
 }

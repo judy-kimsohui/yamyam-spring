@@ -32,12 +32,13 @@ public interface VideoMapper {
     void updateFoodItemQuantity(@Param("id") Long id, @Param("quantity") Double quantity);
 
     //
-    void updateNutritionAnalysisTotal(
-            @Param("videoId") Long videoId,
-            @Param("totalCalories") Double totalCalories,
-            @Param("totalCarbs") Double totalCarbs,
-            @Param("totalProtein") Double totalProtein,
-            @Param("totalFat") Double totalFat
+    @org.apache.ibatis.annotations.Update("UPDATE NUTRITION_ANALYSIS SET total_calories = #{totalCalories}, total_carbs = #{totalCarbs}, total_protein = #{totalProtein}, total_fat = #{totalFat} WHERE video_id = #{videoId}")
+	void updateNutritionAnalysisTotal(
+            @org.apache.ibatis.annotations.Param("videoId") Long videoId,
+            @org.apache.ibatis.annotations.Param("totalCalories") Double totalCalories,
+            @org.apache.ibatis.annotations.Param("totalCarbs") Double totalCarbs,
+            @org.apache.ibatis.annotations.Param("totalProtein") Double totalProtein,
+            @org.apache.ibatis.annotations.Param("totalFat") Double totalFat
     );
 
     RecognizedFoodItem findFoodItemById(Long id);
