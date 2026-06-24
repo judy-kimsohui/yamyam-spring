@@ -1,5 +1,6 @@
 package com.ssafy.yamyam.domain.video.service;
 
+import com.ssafy.yamyam.domain.video.dto.PresignedUploadResult;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface VideoStorage {
@@ -11,4 +12,7 @@ public interface VideoStorage {
 
     /** 저장된 파일 삭제 */
     void delete(String stored);
+
+    /** 브라우저 직접 업로드용 presigned PUT URL 반환. dev 모드에서는 null 반환. */
+    default PresignedUploadResult presignPut(String contentType) { return null; }
 }

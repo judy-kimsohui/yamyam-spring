@@ -6,9 +6,12 @@ import com.ssafy.yamyam.domain.nutrition.model.RecognizedFoodItem;
 import com.ssafy.yamyam.domain.nutrition.service.VideoAnalysisService;
 import com.ssafy.yamyam.domain.video.dto.FoodItemUpdateDto;
 import com.ssafy.yamyam.domain.video.dto.VideoDto;
+import com.ssafy.yamyam.domain.video.dto.VideoRegisterDto;
 import com.ssafy.yamyam.domain.video.mapper.VideoMapper;
 import com.ssafy.yamyam.domain.video.model.Video;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -27,6 +30,10 @@ public class VideoService {
     private final VideoStorage videoStorage;
     private final NutritionMapper nutritionMapper;
     private final VideoAnalysisService videoAnalysisService;
+
+    @Nullable
+    @Autowired(required = false)
+    private HlsTranscoderService hlsTranscoder;
 
 
     @Transactional
@@ -57,6 +64,7 @@ public class VideoService {
                 @Override
                 public void afterCommit() { //
                     videoAnalysisService.analyzeAsync(video.getId(), stored); //
+                    if (hlsTranscoder != null) hlsTranscoder.transcodeAsync(video.getId(), stored); //
                 } //
             }); //
 
@@ -69,6 +77,46 @@ public class VideoService {
             videoStorage.delete(stored); //
             throw e;  //
         }
+    }
+
+    @Transactional
+    public VideoDto registerVideo(Long userId, VideoRegisterDto dto) {
+        String stored = dto.getKey();
+
+        Video video = new Video();
+        video.setUserId(userId);
+        video.setTeamId(dto.getTeamId());
+        video.setMealType(dto.getMealType().toUpperCase());
+        video.setMealDate(LocalDate.parse(dto.getMealDate()));
+        video.setVideoUrl(stored);
+        video.setDescription(dto.getDescription());
+
+        videoMapper.insertVideo(video);
+
+        NutritionAnalysis initialAnalysis = new NutritionAnalysis();
+        initialAnalysis.setVideoId(video.getId());
+        initialAnalysis.setStatus(NutritionAnalysis.Status.PENDING);
+        nutritionMapper.insertNutritionAnalysis(initialAnalysis);
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                videoAnalysisService.analyzeAsync(video.getId(), stored);
+                if (hlsTranscoder != null) hlsTranscoder.transcodeAsync(video.getId(), stored);
+            }
+        });
+
+        VideoDto result = buildDto(video);
+        result.setVideoUrl(videoStorage.toUrl(stored));
+        result.setStatus("PENDING");
+        return result;
+    }
+
+    public void triggerHlsById(Long videoId) {
+        if (hlsTranscoder == null) return;
+        VideoDto dto = videoMapper.findById(videoId, 0L);
+        if (dto == null) throw new IllegalArgumentException("Video not found: " + videoId);
+        hlsTranscoder.transcodeAsync(videoId, dto.getVideoUrl());
     }
 
     public VideoDto getVideoById(Long id, Long loginUserId) {

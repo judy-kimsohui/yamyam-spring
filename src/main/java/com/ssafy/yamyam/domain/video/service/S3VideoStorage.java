@@ -1,5 +1,6 @@
 package com.ssafy.yamyam.domain.video.service;
 
+import com.ssafy.yamyam.domain.video.dto.PresignedUploadResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -10,6 +11,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -66,8 +68,30 @@ public class S3VideoStorage implements VideoStorage {
         s3Client.deleteObject(r -> r.bucket(bucket).key(stored));
     }
 
+    @Override
+    public PresignedUploadResult presignPut(String contentType) {
+        String ext = extFromContentType(contentType);
+        String key = "videos/" + UUID.randomUUID() + ext;
+
+        PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(r ->
+                r.signatureDuration(Duration.ofMinutes(15))
+                 .putObjectRequest(p -> p.bucket(bucket).key(key).contentType(contentType))
+        );
+        return new PresignedUploadResult(presigned.url().toString(), key);
+    }
+
     private String getExt(String filename) {
         if (filename == null || !filename.contains(".")) return ".mp4";
         return filename.substring(filename.lastIndexOf("."));
+    }
+
+    private String extFromContentType(String contentType) {
+        if (contentType == null) return ".mp4";
+        return switch (contentType) {
+            case "video/quicktime" -> ".mov";
+            case "video/webm" -> ".webm";
+            case "video/ogg" -> ".ogv";
+            default -> ".mp4";
+        };
     }
 }

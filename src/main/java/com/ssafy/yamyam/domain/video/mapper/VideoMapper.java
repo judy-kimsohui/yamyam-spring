@@ -43,4 +43,6 @@ public interface VideoMapper {
     RecognizedFoodItem findFoodItemById(Long id);
 
     List<VideoDto> findTeamVideos(Long teamId, String date, Long loginUserId);
+
+    void updateVideoUrl(@Param("id") Long id, @Param("videoUrl") String videoUrl);
 }

@@ -105,4 +105,8 @@
         UPDATE RECOGNIZED_FOOD_ITEM SET quantity = #{quantity} WHERE id = #{id}
     </update>
 
+    <update id="updateVideoUrl">
+        UPDATE VIDEOS SET video_url = #{videoUrl} WHERE id = #{id}
+    </update>
+
 </mapper>

@@ -1,7 +1,10 @@
 package com.ssafy.yamyam.domain.video.controller;
 
+import com.ssafy.yamyam.domain.video.dto.PresignedUploadResult;
 import com.ssafy.yamyam.domain.video.dto.VideoDto;
+import com.ssafy.yamyam.domain.video.dto.VideoRegisterDto;
 import com.ssafy.yamyam.domain.video.service.VideoService;
+import com.ssafy.yamyam.domain.video.service.VideoStorage;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +21,30 @@ import java.util.Map;
 public class VideoController {
 
     private final VideoService videoService;
+    private final VideoStorage videoStorage;
+
+    @GetMapping("/presigned-upload")
+    public ResponseEntity<?> getPresignedUploadUrl(
+            @RequestParam(defaultValue = "video/mp4") String contentType) {
+        PresignedUploadResult result = videoStorage.presignPut(contentType);
+        if (result == null) {
+            return ResponseEntity.status(404).body("presigned upload not available in dev mode");
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> registerVideo(
+            @RequestBody VideoRegisterDto dto,
+            HttpServletRequest request) {
+        Long loginUserId = (Long) request.getAttribute("loginUserKey");
+        try {
+            VideoDto result = videoService.registerVideo(loginUserId, dto);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("등록 오류: " + e.getMessage());
+        }
+    }
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadVideo(
@@ -54,6 +81,16 @@ public class VideoController {
             return ResponseEntity.status(403).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/hls")
+    public ResponseEntity<Void> triggerHls(@PathVariable Long id) {
+        try {
+            videoService.triggerHlsById(id);
+            return ResponseEntity.accepted().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
         }
     }
 
