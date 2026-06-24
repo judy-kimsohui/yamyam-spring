@@ -78,7 +78,7 @@ public class NutritionService {
             item.setQuantity(q);
 
             // [중요] 1인분 영양소 계산 (데이터 정규화)
-            // 만약 프론트에서 넘어온 item.getCalories()가 이미 q가 곱해진 값이라면 
+            // 만약 프론트에서 넘어온 item.getCalor	ies()가 이미 q가 곱해진 값이라면 
             // 여기서 1인분 값으로 복원하여 DB에 저장해야 나중에 다시 불러올 때 문제가 없습니다.
             // 현재는 프론트가 1인분 스펙을 보낸다고 가정하고 처리합니다.
             double caloriesPerServing = (item.getCalories() != null) ? item.getCalories() : 0;

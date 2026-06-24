@@ -73,4 +73,22 @@
     ORDER BY id
 </select>
 
+<select id="findDailySummary" parameterType="map" resultType="map">
+    SELECT 
+        SUM(total_calories) as totalCalories,
+        SUM(total_carbs) as totalCarbs,
+        SUM(total_protein) as totalProtein,
+        SUM(total_fat) as totalFat
+    FROM NUTRITION_ANALYSIS
+    WHERE DATE(created_at) = #{date} 
+      AND user_id = #{userId}
+</select>
+
+<select id="findDailyLogs" parameterType="map" resultType="com.ssafy.yamyam.domain.nutrition.model.NutritionAnalysis">
+    SELECT *
+    FROM NUTRITION_ANALYSIS
+    WHERE DATE(created_at) = #{date} 
+      AND user_id = #{userId}
+</select>
+
 </mapper>
