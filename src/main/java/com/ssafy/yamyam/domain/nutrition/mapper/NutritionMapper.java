@@ -21,4 +21,8 @@ public interface NutritionMapper {
 
     void insertFoodItem(RecognizedFoodItem item);
     List<RecognizedFoodItem> findFoodItemsByAnalysisId(@Param("nutritionAnalysisId") Long nutritionAnalysisId);
+
+    RecognizedFoodItem findFoodItemById(@Param("id") Long id);
+    void updateFoodItem(RecognizedFoodItem item);
+    void deleteFoodItemById(@Param("id") Long id);
 }

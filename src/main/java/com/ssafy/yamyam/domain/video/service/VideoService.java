@@ -17,6 +17,7 @@ import com.ssafy.yamyam.domain.nutrition.service.VideoAnalysisService;
 import com.ssafy.yamyam.domain.user.mapper.UserMapper;
 import com.ssafy.yamyam.domain.video.dto.DailyDashboardResponseDto;
 import com.ssafy.yamyam.domain.video.dto.DailyDietSummaryDto;
+import com.ssafy.yamyam.domain.video.dto.FoodItemRequestDto;
 import com.ssafy.yamyam.domain.video.dto.FoodItemUpdateDto;
 import com.ssafy.yamyam.domain.video.dto.NutrientGoalDto;
 import com.ssafy.yamyam.domain.video.dto.PeriodNutrientTrendDto;
@@ -300,6 +301,126 @@ public class VideoService {
         }
         
         return trends;
+    }
+    
+    
+    private void recalculateTotalNutrition(Long videoId) {
+        NutritionAnalysis analysis = nutritionMapper.findByVideoId(videoId);
+        if (analysis == null) return;
+
+        // 현재 분석 결과에 저장된 모든 음식들을 불러옵니다.
+        List<RecognizedFoodItem> items = nutritionMapper.findFoodItemsByAnalysisId(analysis.getId());
+
+        double totalCalories = 0.0;
+        double totalCarbs = 0.0;
+        double totalProtein = 0.0;
+        double totalFat = 0.0;
+
+        for (RecognizedFoodItem item : items) {
+            totalCalories += item.getCalories() != null ? item.getCalories() : 0.0;
+            totalCarbs    += item.getCarbs() != null ? item.getCarbs() : 0.0;
+            totalProtein  += item.getProtein() != null ? item.getProtein() : 0.0;
+            totalFat      += item.getFat() != null ? item.getFat() : 0.0;
+        }
+
+        // 마스터 테이블(nutrition_analysis) 정보 갱신
+        analysis.setTotalCalories(totalCalories);
+        analysis.setTotalCarbs(totalCarbs);
+        analysis.setTotalProtein(totalProtein);
+        analysis.setTotalFat(totalFat);
+        nutritionMapper.updateNutritionAnalysis(analysis);
+    }
+
+    /**
+     * 🌟 [음식 직접 추가 API] 사용자가 새로운 음식을 수동으로 추가합니다.
+     * 이름만 입력한 경우 시스템 가이드라인 영양소 사전에서 매핑 값을 찾아와 채워줍니다.
+     */
+    @Transactional
+    public void addManualFoodItem(Long videoId, FoodItemRequestDto dto) {
+        NutritionAnalysis analysis = nutritionMapper.findByVideoId(videoId);
+        if (analysis == null) {
+            throw new IllegalArgumentException("영양 분석 대상이 존재하지 않습니다.");
+        }
+
+        RecognizedFoodItem item = new RecognizedFoodItem();
+        item.setNutritionAnalysisId(analysis.getId());
+        item.setFoodName(dto.getFoodName());
+
+        // 프론트에서 영양소를 직접 보내지 않은 경우, 음식 사전 정보에서 불러옵니다.
+        if (dto.getCalories() == null) {
+            RecognizedFoodItem standardNutrients = fetchStandardNutrients(dto.getFoodName());
+            item.setCalories(standardNutrients.getCalories());
+            item.setCarbs(standardNutrients.getCarbs());
+            item.setProtein(standardNutrients.getProtein());
+            item.setFat(standardNutrients.getFat());
+        } else {
+            item.setCalories(dto.getCalories());
+            item.setCarbs(dto.getCarbs());
+            item.setProtein(dto.getProtein());
+            item.setFat(dto.getFat());
+        }
+
+        nutritionMapper.insertFoodItem(item);
+        recalculateTotalNutrition(videoId); // 총합 갱신
+    }
+
+    /**
+     * 🌟 [음식 정보 수정 API] 오인식된 음식의 이름 및 영양성분을 직접 수정합니다.
+     */
+    @Transactional
+    public void updateFoodItem(Long videoId, FoodItemRequestDto dto) {
+        RecognizedFoodItem item = nutritionMapper.findFoodItemById(dto.getId());
+        if (item == null) {
+            throw new IllegalArgumentException("존재하지 않는 음식 항목입니다.");
+        }
+
+        item.setFoodName(dto.getFoodName());
+        
+        // 이름이 바뀌었을 때 프론트가 영양소를 빈 값으로 보냈다면 표준 영양소 재할당
+        if (dto.getCalories() == null) {
+            RecognizedFoodItem standardNutrients = fetchStandardNutrients(dto.getFoodName());
+            item.setCalories(standardNutrients.getCalories());
+            item.setCarbs(standardNutrients.getCarbs());
+            item.setProtein(standardNutrients.getProtein());
+            item.setFat(standardNutrients.getFat());
+        } else {
+            item.setCalories(dto.getCalories());
+            item.setCarbs(dto.getCarbs());
+            item.setProtein(dto.getProtein());
+            item.setFat(dto.getFat());
+        }
+
+        nutritionMapper.updateFoodItem(item);
+        recalculateTotalNutrition(videoId); // 총합 갱신
+    }
+
+    /**
+     * 🌟 [음식 삭제 API] 잘못 인식되었거나 먹지 않은 요소를 목록에서 소거합니다.
+     */
+    @Transactional
+    public void deleteFoodItem(Long videoId, Long foodItemId) {
+        nutritionMapper.deleteFoodItemById(foodItemId);
+        recalculateTotalNutrition(videoId); // 총합 갱신
+    }
+
+    /**
+     *  사람의 수동 입력 텍스트를 기반으로 표준 칼로리를 불러오는 간이 매퍼/사전 메소드입니다.
+     *  현재 임시 구현 상태. 나중에 AI를 넣든, db 연결시키든
+     */
+    private RecognizedFoodItem fetchStandardNutrients(String foodName) {
+        RecognizedFoodItem standard = new RecognizedFoodItem();
+        // 간단한 딕셔너리 가이드 스텁 (원하는 방식으로 고도화 가능)
+        if (foodName.contains("닭가슴살")) {
+            standard.setCalories(165.0); standard.setCarbs(0.0); standard.setProtein(31.0); standard.setFat(3.6);
+        } else if (foodName.contains("공기밥") || foodName.contains("쌀밥")) {
+            standard.setCalories(300.0); standard.setCarbs(65.0); standard.setProtein(5.0); standard.setFat(1.0);
+        } else if (foodName.contains("계란말이")) {
+            standard.setCalories(250.0); standard.setCarbs(3.0); standard.setProtein(18.0); standard.setFat(17.0);
+        } else {
+            // 기본값 매핑 가드선 설정
+            standard.setCalories(200.0); standard.setCarbs(25.0); standard.setProtein(10.0); standard.setFat(5.0);
+        }
+        return standard;
     }
 
     private VideoDto buildDto(Video v) {

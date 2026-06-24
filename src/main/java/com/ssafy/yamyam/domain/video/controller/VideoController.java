@@ -96,8 +96,8 @@ public class VideoController {
         Long loginUserId = (Long) request.getAttribute("loginUserKey");
         
         if (loginUserId == null) {
-        	loginUserId = 1L;
-        	//            return ResponseEntity.status(401).build();
+        	
+            return ResponseEntity.status(401).build();
         }
 
         // 2. 서비스 레이어 마스터 메서드를 호출하여 완성된 하루 레포트 그릇 획득
@@ -117,8 +117,9 @@ public class VideoController {
             HttpServletRequest request) {
         
         Long loginUserId = (Long) request.getAttribute("loginUserKey");
-        if (loginUserId == null) {
-            loginUserId = 1L; // 로컬 테스트 편의용 가드 가동
+    	if (loginUserId == null) {
+        	
+            return ResponseEntity.status(401).build();
         }
 
         List<PeriodNutrientTrendDto> trendData = videoService.getNutrientTrend(loginUserId, startDate, endDate);

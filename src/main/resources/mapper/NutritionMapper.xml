@@ -72,5 +72,34 @@
         WHERE nutrition_analysis_id = #{nutritionAnalysisId}
         ORDER BY id
     </select>
+    
+    <select id="findFoodItemById" resultType="com.ssafy.yamyam.domain.nutrition.model.RecognizedFoodItem">
+        SELECT 
+            id,
+            nutrition_analysis_id AS nutritionAnalysisId,
+            food_name AS foodName,
+            calories,
+            carbs,
+            protein,
+            fat
+        FROM RECOGNIZED_FOOD_ITEM
+        WHERE id = #{id}
+    </select>
+
+    <update id="updateFoodItem" parameterType="com.ssafy.yamyam.domain.nutrition.model.RecognizedFoodItem">
+        UPDATE RECOGNIZED_FOOD_ITEM
+        SET
+            food_name = #{foodName},
+            calories = #{calories},
+            carbs = #{carbs},
+            protein = #{protein},
+            fat = #{fat}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteFoodItemById">
+        DELETE FROM RECOGNIZED_FOOD_ITEM
+        WHERE id = #{id}
+    </delete>
 
 </mapper>
