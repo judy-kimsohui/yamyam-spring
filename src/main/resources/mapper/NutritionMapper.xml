@@ -80,10 +80,15 @@
         COALESCE(SUM(na.total_protein), 0) AS totalProtein,
         COALESCE(SUM(na.total_fat), 0) AS totalFat
     FROM NUTRITION_ANALYSIS na
-    JOIN VIDEOS v ON v.id = na.video_id
-    WHERE v.meal_date = #{date}
-      AND v.user_id = #{userId}
-      AND na.status = 'DONE'
+    JOIN (
+        SELECT MAX(na2.id) AS id
+        FROM NUTRITION_ANALYSIS na2
+        JOIN VIDEOS v2 ON v2.id = na2.video_id
+        WHERE v2.meal_date = #{date}
+          AND v2.user_id = #{userId}
+          AND na2.status = 'DONE'
+        GROUP BY v2.meal_type
+    ) picked ON picked.id = na.id
 </select>
 
 <select id="findDailyLogs" parameterType="map" resultType="com.ssafy.yamyam.domain.nutrition.model.NutritionAnalysis">
@@ -102,9 +107,39 @@
         na.updated_at     AS updatedAt
     FROM NUTRITION_ANALYSIS na
     JOIN VIDEOS v ON v.id = na.video_id
-    WHERE v.meal_date = #{date}
-      AND v.user_id = #{userId}
-      AND na.status = 'DONE'
+    JOIN (
+        SELECT MAX(na2.id) AS id
+        FROM NUTRITION_ANALYSIS na2
+        JOIN VIDEOS v2 ON v2.id = na2.video_id
+        WHERE v2.meal_date = #{date}
+          AND v2.user_id = #{userId}
+          AND na2.status = 'DONE'
+        GROUP BY v2.meal_type
+    ) picked ON picked.id = na.id
+</select>
+
+<select id="findDailyNutritionTrend" resultType="map">
+    SELECT
+        picked.mealDate AS mealDate,
+        COALESCE(SUM(na.total_calories), 0) AS calories,
+        COALESCE(SUM(na.total_carbs), 0) AS carbs,
+        COALESCE(SUM(na.total_protein), 0) AS protein,
+        COALESCE(SUM(na.total_fat), 0) AS fat,
+        COUNT(*) AS recordCount
+    FROM NUTRITION_ANALYSIS na
+    JOIN (
+        SELECT
+            v2.meal_date AS mealDate,
+            MAX(na2.id) AS id
+        FROM VIDEOS v2
+        JOIN NUTRITION_ANALYSIS na2 ON na2.video_id = v2.id
+        WHERE v2.user_id = #{userId}
+          AND v2.meal_date BETWEEN #{startDate} AND #{endDate}
+          AND na2.status = 'DONE'
+        GROUP BY v2.meal_date, v2.meal_type
+    ) picked ON picked.id = na.id
+    GROUP BY picked.mealDate
+    ORDER BY picked.mealDate
 </select>
 
 <select id="findDailyAiComment" resultType="string">
