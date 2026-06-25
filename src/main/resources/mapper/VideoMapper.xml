@@ -52,9 +52,18 @@
                (SELECT COUNT(*) FROM VIDEO_LIKES vl2 WHERE vl2.video_id = v.id AND vl2.user_id = #{userId}) AS liked
         FROM VIDEOS v
         JOIN USERS u ON v.user_id = u.id
-        LEFT JOIN NUTRITION_ANALYSIS na ON v.id = na.video_id WHERE v.user_id = #{ownerId}
-          AND v.meal_date = #{mealDate}
-        ORDER BY v.meal_type
+        LEFT JOIN NUTRITION_ANALYSIS na ON v.id = na.video_id
+        WHERE v.id IN (
+            SELECT picked.id
+            FROM (
+                SELECT MAX(id) AS id
+                FROM VIDEOS
+                WHERE user_id = #{ownerId}
+                  AND meal_date = #{mealDate}
+                GROUP BY meal_type
+            ) picked
+        )
+        ORDER BY FIELD(v.meal_type, 'BREAKFAST', 'LUNCH', 'DINNER'), v.meal_type
     </select>
 
     <select id="findById" resultType="com.ssafy.yamyam.domain.video.dto.VideoDto">
