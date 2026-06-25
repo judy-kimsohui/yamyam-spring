@@ -7,8 +7,8 @@ set -e
 echo "=== 1. 패키지 업데이트 ==="
 sudo apt-get update -y
 
-echo "=== 2. Java 17 설치 ==="
-sudo apt-get install -y openjdk-17-jdk
+echo "=== 2. Java 21 설치 ==="
+sudo apt-get install -y openjdk-21-jdk
 java -version
 
 echo "=== 3. Docker 설치 ==="
@@ -85,6 +85,32 @@ echo "=== 6. 디렉토리 생성 ==="
 mkdir -p /home/ubuntu/app/logs
 mkdir -p /home/ubuntu/frontend
 mkdir -p /home/ubuntu/uploads/videos
+
+echo "=== 7. Spring Backend systemd 서비스 등록 ==="
+sudo tee /etc/systemd/system/app.service > /dev/null << 'SERVICE'
+[Unit]
+Description=YamYam Spring Backend
+Requires=docker.service
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/app
+EnvironmentFile=/home/ubuntu/app/.env
+Environment="JAVA_OPTS=-Xms256m -Xmx384m -XX:+UseG1GC"
+ExecStart=/usr/bin/java $JAVA_OPTS -Dspring.profiles.active=prod -jar /home/ubuntu/app/app.jar
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/ubuntu/app/logs/app.log
+StandardError=append:/home/ubuntu/app/logs/app.log
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+sudo systemctl daemon-reload
+sudo systemctl enable app
 
 echo ""
 echo "✅ EC2 셋업 완료!"

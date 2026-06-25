@@ -42,29 +42,58 @@ jobs:
           cd /home/ubuntu/app
           echo "[1] DB 기동..."
           docker compose up -d
-          echo "[2] 기존 앱 종료..."
-          pkill -f "app.jar" 2>/dev/null || true
+          echo "[2] systemd 서비스 설치/갱신..."
+          sudo tee /etc/systemd/system/app.service > /dev/null << 'SERVICE'
+          [Unit]
+          Description=YamYam Spring Backend
+          Requires=docker.service
+          After=network-online.target docker.service
+          Wants=network-online.target
+
+          [Service]
+          User=ubuntu
+          WorkingDirectory=/home/ubuntu/app
+          EnvironmentFile=/home/ubuntu/app/.env
+          Environment="JAVA_OPTS=-Xms256m -Xmx384m -XX:+UseG1GC"
+          ExecStart=/usr/bin/java $JAVA_OPTS -Dspring.profiles.active=prod -jar /home/ubuntu/app/app.jar
+          SuccessExitStatus=143
+          Restart=always
+          RestartSec=5
+          StandardOutput=append:/home/ubuntu/app/logs/app.log
+          StandardError=append:/home/ubuntu/app/logs/app.log
+
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE
+
+          sudo systemctl daemon-reload
+          sudo systemctl enable app
+
+          echo "[3] 기존 서비스/직접 실행 프로세스 정리..."
+          sudo systemctl stop app 2>/dev/null || true
+          pkill -f "java .*app.jar" 2>/dev/null || true
           sleep 2
-          echo "[3] 앱 시작..."
-          source /home/ubuntu/app/.env
-          nohup java -Dspring.profiles.active=prod -Xmx512m \
-            -jar /home/ubuntu/app/app.jar \
-            > /home/ubuntu/app/logs/app.log 2>&1 &
+
+          echo "[4] 앱 재시작..."
+          sudo systemctl restart app
           sleep 10
-          if pgrep -f "app.jar" > /dev/null; then
-            echo "✅ Backend is running (PID: $(pgrep -f app.jar))"
+          if sudo systemctl is-active --quiet app; then
+            echo "✅ Backend is running"
+            sudo systemctl --no-pager --full status app
           else
-            echo "❌ Backend failed - last 20 lines:"
-            tail -20 /home/ubuntu/app/logs/app.log
+            echo "❌ Backend failed - status:"
+            sudo systemctl --no-pager --full status app || true
+            echo "❌ Last 80 log lines:"
+            journalctl -u app -n 80 --no-pager || true
             exit 1
           fi
           SCRIPT
 
-          # AWS 환경변수를 EC2에 .env 파일로 저장 (git에 커밋되지 않음)
+          # AWS 환경변수를 EC2 systemd EnvironmentFile로 저장 (git에 커밋되지 않음)
           ssh -i key.pem $OPT ubuntu@$HOST "cat > /home/ubuntu/app/.env << 'ENVEOF'
-          export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-          export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-          export S3_BUCKET=${S3_BUCKET}
+          AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+          AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+          S3_BUCKET=${S3_BUCKET}
           ENVEOF
           chmod 600 /home/ubuntu/app/.env"
 
