@@ -99,7 +99,7 @@ public class LogService {
             while (!cursor.isAfter(base)) {
                 LocalDate start = cursor;
                 LocalDate end = start.plusDays(6).isAfter(base) ? base : start.plusDays(6);
-                buckets.add(new Bucket("W" + week, datesBetween(start, end)));
+                buckets.add(new Bucket(week + "\uC8FC\uCC28", datesBetween(start, end)));
                 cursor = end.plusDays(1);
                 week++;
             }
@@ -107,12 +107,25 @@ public class LogService {
         }
 
         List<Bucket> buckets = new ArrayList<>();
-        for (int i = 3; i >= 0; i--) {
-            LocalDate end = base.minusWeeks(i);
-            LocalDate start = end.minusDays(6);
-            buckets.add(new Bucket(i == 0 ? "this week" : i + "w ago", datesBetween(start, end)));
+        LocalDate startOfWeek = base.minusDays(base.getDayOfWeek().getValue() - 1L);
+        LocalDate cursor = startOfWeek;
+        while (!cursor.isAfter(base)) {
+            buckets.add(new Bucket(dayLabel(cursor), List.of(cursor)));
+            cursor = cursor.plusDays(1);
         }
         return buckets;
+    }
+
+    private String dayLabel(LocalDate date) {
+        return switch (date.getDayOfWeek()) {
+            case MONDAY -> "\uC6D4";
+            case TUESDAY -> "\uD654";
+            case WEDNESDAY -> "\uC218";
+            case THURSDAY -> "\uBAA9";
+            case FRIDAY -> "\uAE08";
+            case SATURDAY -> "\uD1A0";
+            case SUNDAY -> "\uC77C";
+        };
     }
 
     private List<LocalDate> datesBetween(LocalDate start, LocalDate end) {
