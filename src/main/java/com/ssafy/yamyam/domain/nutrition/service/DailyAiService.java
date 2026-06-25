@@ -1,6 +1,5 @@
 package com.ssafy.yamyam.domain.nutrition.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.yamyam.domain.nutrition.mapper.NutritionMapper;
 import com.ssafy.yamyam.domain.user.model.User;
 import com.ssafy.yamyam.domain.user.service.UserService;
@@ -12,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +23,6 @@ public class DailyAiService {
 
     private final NutritionMapper nutritionMapper;
     private final UserService userService;
-    private final ObjectMapper objectMapper;
 
     @Value("${spring.ai.openai.base-url:https://gms.ssafy.io/gmsapi}")
     private String gmsBaseUrl;
@@ -33,34 +32,42 @@ public class DailyAiService {
 
     @Transactional
     public String evaluateDailyLog(Long userId, String date) {
-        // 1. 데이터 준비
         User user = userService.getUserInfo(userId);
         Map<String, Object> summary = nutritionMapper.findDailySummary(userId, date);
 
         if (user == null || summary == null || summary.isEmpty()) {
-            throw new IllegalArgumentException("평가할 유저 정보 또는 식단 기록이 없습니다.");
+            throw new IllegalArgumentException("평가할 사용자 정보 또는 식단 기록이 없습니다.");
         }
 
-        // 2. 프롬프트 구성 (JSON 형식 강제)
+        double totalCalories = toDouble(summary.get("totalCalories"));
+        double totalCarbs = toDouble(summary.get("totalCarbs"));
+        double totalProtein = toDouble(summary.get("totalProtein"));
+        double totalFat = toDouble(summary.get("totalFat"));
+
+        if (totalCalories <= 0 && totalCarbs <= 0 && totalProtein <= 0 && totalFat <= 0) {
+            throw new IllegalArgumentException("분석 완료된 식단 영양 정보가 없습니다.");
+        }
+
         String prompt = String.format("""
-            당신은 전문 영양사입니다. 사용자의 오늘 하루 총 식단 섭취량을 분석하여 JSON 형식으로만 답변하세요.
-            다른 텍스트는 절대 포함하지 마세요.
-            {
-                "summary": "전체적인 평가 한 줄",
-                "advice": "내일 식단을 위한 조언",
-                "missingNutrients": ["부족한 영양소1", "부족한 영양소2"],
-                "score": 85
-            }
-            [사용자 정보] 성별: %s, 나이: %d, 키: %.1f, 몸무게: %.1f, 목표: %s
-            [오늘 섭취] 칼로리: %.0f kcal, 탄수화물: %.0f g, 단백질: %.0f g, 지방: %.0f g
+            당신은 식단 영양 코치입니다.
+            아래 사용자의 하루 식사 합계를 보고 한국어로 2~3문장의 짧은 피드백만 작성하세요.
+            JSON, 마크다운, 코드블록, 점수표는 쓰지 마세요.
+            칼로리/탄수화물/단백질/지방 중 눈에 띄는 균형을 언급하고, 다음 식사에서 바로 실천할 조언을 하나 포함하세요.
+
+            [사용자 정보] 성별: %s, 나이: %d, 키: %.1fcm, 몸무게: %.1fkg, 목표: %s
+            [하루 식사 합계] 칼로리 %.0f kcal, 탄수화물 %.0f g, 단백질 %.0f g, 지방 %.0f g
             """,
-                user.getGender(), user.getAge(), user.getHeight(), user.getWeight(),
-                (user.getUserGoal() != null ? user.getUserGoal() : "건강 관리"),
-                toDouble(summary.get("total_calories")), toDouble(summary.get("total_carbs")),
-                toDouble(summary.get("total_protein")), toDouble(summary.get("total_fat"))
+            user.getGender(),
+            user.getAge(),
+            user.getHeight(),
+            user.getWeight(),
+            user.getUserGoal() != null ? user.getUserGoal() : "건강 관리",
+            totalCalories,
+            totalCarbs,
+            totalProtein,
+            totalFat
         );
 
-        // 3. API 호출 로직 (VideoAnalysisService와 동일한 방식 사용)
         Map<String, Object> messagePayload = new LinkedHashMap<>();
         messagePayload.put("role", "user");
         messagePayload.put("content", prompt);
@@ -68,40 +75,63 @@ public class DailyAiService {
         Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("model", "gpt-4o");
         requestBody.put("messages", List.of(messagePayload));
-        requestBody.put("temperature", 0.7);
+        requestBody.put("temperature", 0.4);
 
         WebClient webClient = WebClient.builder()
-                .baseUrl(gmsBaseUrl)
-                .defaultHeader("Authorization", "Bearer " + gmsApiKey)
-                .defaultHeader("Content-Type", "application/json")
-                .build();
+            .baseUrl(gmsBaseUrl)
+            .defaultHeader("Authorization", "Bearer " + gmsApiKey)
+            .defaultHeader("Content-Type", "application/json")
+            .build();
 
         Map<String, Object> responseBody = webClient.post()
-                .uri("/v1/chat/completions")
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .block();
+            .uri("/v1/chat/completions")
+            .bodyValue(requestBody)
+            .retrieve()
+            .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+            .block(Duration.ofSeconds(60));
 
-        // 4. 응답 파싱 및 마크다운 정제
+        String aiResponse = extractMessage(responseBody);
+        try {
+            nutritionMapper.upsertDailyAiComment(userId, date, aiResponse);
+        } catch (Exception e) {
+            log.warn("일일 AI 피드백 저장 실패. 응답은 그대로 반환합니다. userId={}, date={}, message={}",
+                userId, date, e.getMessage());
+        }
+        return aiResponse;
+    }
+
+    public String getDailyAiComment(Long userId, String date) {
+        try {
+            return nutritionMapper.findDailyAiComment(userId, date);
+        } catch (Exception e) {
+            log.warn("저장된 일일 AI 피드백 조회 실패. userId={}, date={}, message={}",
+                userId, date, e.getMessage());
+            return null;
+        }
+    }
+
+    private String extractMessage(Map<String, Object> responseBody) {
         List<?> choices = (List<?>) responseBody.get("choices");
         Map<?, ?> resMessage = (Map<?, ?>) ((Map<?, ?>) choices.get(0)).get("message");
-        String aiResponse = (String) resMessage.get("content");
-
-        if (aiResponse.startsWith("```")) {
-            aiResponse = aiResponse.replaceAll("^```json\\n?", "").replaceAll("```$", "").trim();
+        String content = (String) resMessage.get("content");
+        if (content == null) {
+            return "AI 피드백을 생성하지 못했습니다.";
         }
 
-        // 5. DB 저장
-        nutritionMapper.upsertDailyAiComment(userId, date, aiResponse);
-
-        return aiResponse;
+        content = content.trim();
+        if (content.startsWith("```")) {
+            content = content.replaceAll("^```[a-zA-Z]*\\n?", "").replaceAll("```$", "").trim();
+        }
+        return content;
     }
 
     private double toDouble(Object val) {
         if (val == null) return 0.0;
         if (val instanceof Number) return ((Number) val).doubleValue();
-        try { return Double.parseDouble(val.toString()); }
-        catch (Exception e) { return 0.0; }
+        try {
+            return Double.parseDouble(val.toString());
+        } catch (Exception e) {
+            return 0.0;
+        }
     }
 }

@@ -75,20 +75,36 @@
 
 <select id="findDailySummary" parameterType="map" resultType="map">
     SELECT 
-        SUM(total_calories) as totalCalories,
-        SUM(total_carbs) as totalCarbs,
-        SUM(total_protein) as totalProtein,
-        SUM(total_fat) as totalFat
-    FROM NUTRITION_ANALYSIS
-    WHERE DATE(created_at) = #{date} 
-      AND user_id = #{userId}
+        COALESCE(SUM(na.total_calories), 0) AS totalCalories,
+        COALESCE(SUM(na.total_carbs), 0) AS totalCarbs,
+        COALESCE(SUM(na.total_protein), 0) AS totalProtein,
+        COALESCE(SUM(na.total_fat), 0) AS totalFat
+    FROM NUTRITION_ANALYSIS na
+    JOIN VIDEOS v ON v.id = na.video_id
+    WHERE v.meal_date = #{date}
+      AND v.user_id = #{userId}
+      AND na.status = 'DONE'
 </select>
 
 <select id="findDailyLogs" parameterType="map" resultType="com.ssafy.yamyam.domain.nutrition.model.NutritionAnalysis">
-    SELECT *
-    FROM NUTRITION_ANALYSIS
-    WHERE DATE(created_at) = #{date} 
-      AND user_id = #{userId}
+    SELECT
+        na.id,
+        na.video_id       AS videoId,
+        na.status,
+        na.total_calories AS totalCalories,
+        na.total_carbs    AS totalCarbs,
+        na.total_protein  AS totalProtein,
+        na.total_fat      AS totalFat,
+        na.foods_json     AS foodsJson,
+        na.retry_count    AS retryCount,
+        na.error_message  AS errorMessage,
+        na.created_at     AS createdAt,
+        na.updated_at     AS updatedAt
+    FROM NUTRITION_ANALYSIS na
+    JOIN VIDEOS v ON v.id = na.video_id
+    WHERE v.meal_date = #{date}
+      AND v.user_id = #{userId}
+      AND na.status = 'DONE'
 </select>
 
 <select id="findDailyAiComment" resultType="string">

@@ -28,10 +28,10 @@ public interface NutritionMapper {
     void deleteFoodItemsByAnalysisId(@org.apache.ibatis.annotations.Param("analysisId") Long analysisId);
 	
     
-    Map<String, Object> findDailySummary(Long userId, String date);
+    Map<String, Object> findDailySummary(@Param("userId") Long userId, @Param("date") String date);
 	
     
-    Object findDailyLogs(Long userId, String date);
+    Object findDailyLogs(@Param("userId") Long userId, @Param("date") String date);
 
     String findDailyAiComment(@Param("userId") Long userId, @Param("recordDate") String recordDate);
 

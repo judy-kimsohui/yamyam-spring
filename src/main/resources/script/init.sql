@@ -200,7 +200,7 @@ ALTER TABLE NUTRITION_ANALYSIS
     ADD COLUMN retry_count INT NOT NULL DEFAULT 0;
 
 
-CREATE TABLE daily_ai_comment (
+CREATE TABLE IF NOT EXISTS daily_ai_comment (
     user_id BIGINT NOT NULL,
     record_date VARCHAR(10) NOT NULL, -- 예: '2026-06-24'
     ai_comment TEXT NOT NULL,
