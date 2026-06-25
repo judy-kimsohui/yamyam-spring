@@ -39,6 +39,10 @@ public interface NutritionMapper {
 
     String findDailyAiComment(@Param("userId") Long userId, @Param("recordDate") String recordDate);
 
+    List<Map<String, Object>> findMonthlyDayData(@Param("userId") Long userId,
+                                                  @Param("startDate") String startDate,
+                                                  @Param("endDate") String endDate);
+
     // 일일 종합 코멘트 저장 (UPSERT)
     void upsertDailyAiComment(@Param("userId") Long userId,
                               @Param("recordDate") String recordDate,

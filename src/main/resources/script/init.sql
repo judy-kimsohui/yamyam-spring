@@ -206,3 +206,5 @@ CREATE TABLE IF NOT EXISTS daily_ai_comment (
     ai_comment TEXT NOT NULL,
     PRIMARY KEY (user_id, record_date)
 );
+
+ALTER TABLE RECOGNIZED_FOOD_ITEM MODIFY COLUMN quantity DOUBLE DEFAULT 1.0;

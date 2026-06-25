@@ -148,6 +148,21 @@
     WHERE user_id = #{userId} AND record_date = #{recordDate}
 </select>
 
+<select id="findMonthlyDayData" resultType="map">
+    SELECT
+        v.meal_date                AS mealDate,
+        COUNT(DISTINCT v.id)       AS recordCount,
+        dac.ai_comment             AS aiComment
+    FROM VIDEOS v
+    LEFT JOIN daily_ai_comment dac
+           ON dac.user_id     = v.user_id
+          AND dac.record_date = v.meal_date
+    WHERE v.user_id    = #{userId}
+      AND v.meal_date BETWEEN #{startDate} AND #{endDate}
+    GROUP BY v.meal_date, dac.ai_comment
+    ORDER BY v.meal_date
+</select>
+
 <insert id="upsertDailyAiComment">
     INSERT INTO daily_ai_comment (user_id, record_date, ai_comment)
     VALUES (#{userId}, #{recordDate}, #{aiComment})

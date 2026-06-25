@@ -2,6 +2,7 @@ package com.ssafy.yamyam.domain.nutrition.controller;
 
 import com.ssafy.yamyam.domain.nutrition.service.DailyAiService;
 import com.ssafy.yamyam.domain.nutrition.service.LogService;
+import com.ssafy.yamyam.domain.nutrition.mapper.NutritionMapper;
 
 import com.ssafy.yamyam.global.util.JwtUtil;
 import io.jsonwebtoken.Claims;
@@ -10,6 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.YearMonth;
 
 import java.util.Map;
 
@@ -20,6 +24,7 @@ public class LogController {
     
     private final LogService logService;
     private final DailyAiService dailyAiService;
+    private final NutritionMapper nutritionMapper;
     private final JwtUtil jwtUtil;
 
     // GET /api/logs/daily?date=2026-06-24
@@ -57,6 +62,20 @@ public class LogController {
             return ResponseEntity.ok(Map.of("aiComment", aiComment == null ? "" : aiComment));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("피드백 조회 실패: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/monthly-ai")
+    public ResponseEntity<?> getMonthlyAi(@RequestParam int year, @RequestParam int month,
+                                           @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader) {
+        try {
+            Long userId = extractUserId(authHeader);
+            YearMonth ym = YearMonth.of(year, month);
+            String startDate = ym.atDay(1).toString();
+            String endDate   = ym.atEndOfMonth().toString();
+            return ResponseEntity.ok(nutritionMapper.findMonthlyDayData(userId, startDate, endDate));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("월별 데이터 조회 실패: " + e.getMessage());
         }
     }
 
