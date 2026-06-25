@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.yamyam.domain.nutrition.mapper.NutritionMapper">
+
+    <insert id="insertNutritionAnalysis" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO NUTRITION_ANALYSIS (video_id, status, created_at, updated_at)
+        VALUES (#{videoId}, #{status}, NOW(), NOW())
+    </insert>
+
+    <select id="findByVideoId" resultType="com.ssafy.yamyam.domain.nutrition.model.NutritionAnalysis">
+        SELECT
+            id,
+            video_id       AS videoId,
+            status,
+            total_calories AS totalCalories,
+            total_carbs    AS totalCarbs,
+            total_protein  AS totalProtein,
+            total_fat      AS totalFat,
+            foods_json     AS foodsJson,
+            retry_count    AS retryCount,
+            error_message  AS errorMessage,
+            created_at     AS createdAt,
+            updated_at     AS updatedAt
+        FROM NUTRITION_ANALYSIS
+        WHERE video_id = #{videoId}
+    </select>
+
+    <update id="updateNutritionAnalysis">
+        UPDATE NUTRITION_ANALYSIS
+        SET
+            status         = #{status},
+            total_calories = #{totalCalories},
+            total_carbs    = #{totalCarbs},
+            total_protein  = #{totalProtein},
+            total_fat      = #{totalFat},
+            foods_json     = #{foodsJson},
+            error_message  = #{errorMessage},
+            updated_at     = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteByVideoId">
+        DELETE FROM NUTRITION_ANALYSIS WHERE video_id = #{videoId}
+    </delete>
+
+    <update id="resetToRetry">
+        UPDATE NUTRITION_ANALYSIS
+        SET status = 'PENDING', retry_count = retry_count + 1, updated_at = NOW()
+        WHERE video_id = #{videoId}
+    </update>
+
+    <insert id="insertFoodItem" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO RECOGNIZED_FOOD_ITEM
+            (nutrition_analysis_id, food_name, calories, carbs, protein, fat, quantity)
+        VALUES
+            (#{nutritionAnalysisId}, #{foodName}, #{calories}, #{carbs}, #{protein}, #{fat}, IFNULL(#{quantity}, 1.0))
+    </insert>
+
+    <select id="findFoodItemsByAnalysisId"
+        resultType="com.ssafy.yamyam.domain.nutrition.model.RecognizedFoodItem">
+    SELECT
+        id,
+        nutrition_analysis_id AS nutritionAnalysisId,
+        food_name             AS foodName,
+        calories,
+        carbs,
+        protein,
+        fat,
+        quantity            FROM RECOGNIZED_FOOD_ITEM
+    WHERE nutrition_analysis_id = #{nutritionAnalysisId}
+    ORDER BY id
+</select>
+
+<select id="findDailySummary" parameterType="map" resultType="map">
+    SELECT 
+        COALESCE(SUM(na.total_calories), 0) AS totalCalories,
+        COALESCE(SUM(na.total_carbs), 0) AS totalCarbs,
+        COALESCE(SUM(na.total_protein), 0) AS totalProtein,
+        COALESCE(SUM(na.total_fat), 0) AS totalFat
+    FROM NUTRITION_ANALYSIS na
+    JOIN (
+        SELECT MAX(na2.id) AS id
+        FROM NUTRITION_ANALYSIS na2
+        JOIN VIDEOS v2 ON v2.id = na2.video_id
+        WHERE v2.meal_date = #{date}
+          AND v2.user_id = #{userId}
+          AND na2.status = 'DONE'
+        GROUP BY v2.meal_type
+    ) picked ON picked.id = na.id
+</select>
+
+<select id="findDailyLogs" parameterType="map" resultType="com.ssafy.yamyam.domain.nutrition.model.NutritionAnalysis">
+    SELECT
+        na.id,
+        na.video_id       AS videoId,
+        na.status,
+        na.total_calories AS totalCalories,
+        na.total_carbs    AS totalCarbs,
+        na.total_protein  AS totalProtein,
+        na.total_fat      AS totalFat,
+        na.foods_json     AS foodsJson,
+        na.retry_count    AS retryCount,
+        na.error_message  AS errorMessage,
+        na.created_at     AS createdAt,
+        na.updated_at     AS updatedAt
+    FROM NUTRITION_ANALYSIS na
+    JOIN VIDEOS v ON v.id = na.video_id
+    JOIN (
+        SELECT MAX(na2.id) AS id
+        FROM NUTRITION_ANALYSIS na2
+        JOIN VIDEOS v2 ON v2.id = na2.video_id
+        WHERE v2.meal_date = #{date}
+          AND v2.user_id = #{userId}
+          AND na2.status = 'DONE'
+        GROUP BY v2.meal_type
+    ) picked ON picked.id = na.id
+</select>
+
+<select id="findDailyNutritionTrend" resultType="map">
+    SELECT
+        picked.mealDate AS mealDate,
+        COALESCE(SUM(na.total_calories), 0) AS calories,
+        COALESCE(SUM(na.total_carbs), 0) AS carbs,
+        COALESCE(SUM(na.total_protein), 0) AS protein,
+        COALESCE(SUM(na.total_fat), 0) AS fat,
+        COUNT(*) AS recordCount
+    FROM NUTRITION_ANALYSIS na
+    JOIN (
+        SELECT
+            v2.meal_date AS mealDate,
+            MAX(na2.id) AS id
+        FROM VIDEOS v2
+        JOIN NUTRITION_ANALYSIS na2 ON na2.video_id = v2.id
+        WHERE v2.user_id = #{userId}
+          AND v2.meal_date BETWEEN #{startDate} AND #{endDate}
+          AND na2.status = 'DONE'
+        GROUP BY v2.meal_date, v2.meal_type
+    ) picked ON picked.id = na.id
+    GROUP BY picked.mealDate
+    ORDER BY picked.mealDate
+</select>
+
+<select id="findDailyAiComment" resultType="string">
+    SELECT ai_comment
+    FROM daily_ai_comment
+    WHERE user_id = #{userId} AND record_date = #{recordDate}
+</select>
+
+<select id="findMonthlyDayData" resultType="map">
+    SELECT
+        v.meal_date                AS mealDate,
+        COUNT(DISTINCT v.id)       AS recordCount,
+        dac.ai_comment             AS aiComment
+    FROM VIDEOS v
+    LEFT JOIN daily_ai_comment dac
+           ON dac.user_id     = v.user_id
+          AND dac.record_date = v.meal_date
+    WHERE v.user_id    = #{userId}
+      AND v.meal_date BETWEEN #{startDate} AND #{endDate}
+    GROUP BY v.meal_date, dac.ai_comment
+    ORDER BY v.meal_date
+</select>
+
+<insert id="upsertDailyAiComment">
+    INSERT INTO daily_ai_comment (user_id, record_date, ai_comment)
+    VALUES (#{userId}, #{recordDate}, #{aiComment})
+    ON DUPLICATE KEY UPDATE ai_comment = #{aiComment}
+</insert>
+
+</mapper>

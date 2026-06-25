@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.yamyam.domain.video.mapper.VideoMapper">
+
+    <sql id="videoBaseColumns">
+        v.id,
+        v.user_id       AS userId,
+        u.nick_name     AS uploaderNickName,
+        v.team_id       AS teamId,
+        v.meal_type     AS mealType,
+        v.meal_date     AS mealDate,
+        v.video_url     AS videoUrl,
+        v.description,
+        v.created_at    AS createdAt
+    </sql>
+
+    <sql id="nutritionColumns">
+        IFNULL(na.total_calories, 0.0)  AS calories,
+        IFNULL(na.total_carbs, 0.0)     AS carbs,
+        IFNULL(na.total_protein, 0.0)   AS protein,
+        IFNULL(na.total_fat, 0.0)       AS fat,
+        na.foods_json                   AS aiComment,
+        CASE 
+            WHEN na.status IS NULL THEN 'PENDING'
+            ELSE CAST(na.status AS CHAR)
+        END AS status
+    </sql>
+
+    <insert id="insertVideo" parameterType="com.ssafy.yamyam.domain.video.model.Video"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO VIDEOS (user_id, team_id, meal_type, meal_date, video_url, description)
+        VALUES (#{userId}, #{teamId}, #{mealType}, #{mealDate}, #{videoUrl}, #{description})
+    </insert>
+
+    <select id="findVideosByTeamAndDate" resultType="com.ssafy.yamyam.domain.video.dto.VideoDto">
+        SELECT <include refid="videoBaseColumns"/>,
+        <include refid="nutritionColumns"/>,
+        (SELECT COUNT(*) FROM VIDEO_LIKES vl WHERE vl.video_id = v.id) AS likeCount,
+        (SELECT COUNT(*) FROM VIDEO_LIKES vl2 WHERE vl2.video_id = v.id AND vl2.user_id = #{userId}) AS liked
+        FROM VIDEOS v
+        JOIN USERS u ON v.user_id = u.id
+        LEFT JOIN NUTRITION_ANALYSIS na ON v.id = na.video_id
+        WHERE v.team_id = #{teamId}
+        AND v.meal_date = #{mealDate}
+    </select>
+
+    <select id="findVideosByUserAndDate" resultType="com.ssafy.yamyam.domain.video.dto.VideoDto">
+    SELECT <include refid="videoBaseColumns"/>,
+           <include refid="nutritionColumns"/>,
+           (SELECT COUNT(*) FROM VIDEO_LIKES vl WHERE vl.video_id = v.id) AS likeCount,
+           (SELECT COUNT(*) FROM VIDEO_LIKES vl2 WHERE vl2.video_id = v.id AND vl2.user_id = #{userId}) AS liked
+    FROM VIDEOS v
+    JOIN USERS u ON v.user_id = u.id
+    LEFT JOIN NUTRITION_ANALYSIS na ON v.id = na.video_id
+    WHERE v.id IN (
+        SELECT picked.id
+        FROM (
+            SELECT MAX(id) AS id
+            FROM VIDEOS
+            WHERE user_id = #{ownerId}
+              AND meal_date = #{mealDate}
+            GROUP BY meal_type
+        ) picked
+    )
+    ORDER BY FIELD(v.meal_type, 'BREAKFAST', 'LUNCH', 'DINNER'), v.meal_type
+</select>
+
+    <select id="findById" resultType="com.ssafy.yamyam.domain.video.dto.VideoDto">
+        SELECT <include refid="videoBaseColumns"/>,
+        <include refid="nutritionColumns"/>,
+        (SELECT COUNT(*) FROM VIDEO_LIKES vl WHERE vl.video_id = v.id) AS likeCount,
+        (SELECT COUNT(*) FROM VIDEO_LIKES vl2 WHERE vl2.video_id = v.id AND vl2.user_id = #{userId}) AS liked
+        FROM VIDEOS v
+        JOIN USERS u ON v.user_id = u.id
+        LEFT JOIN NUTRITION_ANALYSIS na ON v.id = na.video_id
+        WHERE v.id = #{id}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM VIDEOS WHERE id = #{id}
+    </delete>
+
+    <update id="updateAnalysis" parameterType="com.ssafy.yamyam.domain.nutrition.model.NutritionAnalysis">
+        UPDATE NUTRITION_ANALYSIS
+        SET total_calories = #{totalCalories},
+            total_carbs    = #{totalCarbs},
+            total_protein  = #{totalProtein},
+            total_fat      = #{totalFat},
+            status         = #{status},
+            foods_json     = #{foodsJson},
+            error_message  = #{errorMessage},
+            updated_at     = NOW()
+        WHERE video_id     = #{videoId}
+    </update>
+
+    <insert id="insertLike">
+        INSERT IGNORE INTO VIDEO_LIKES (video_id, user_id) VALUES (#{videoId}, #{userId})
+    </insert>
+
+    <delete id="deleteLike">
+        DELETE FROM VIDEO_LIKES WHERE video_id = #{videoId} AND user_id = #{userId}
+    </delete>
+
+    <select id="existsLike" resultType="int">
+        SELECT COUNT(*) FROM VIDEO_LIKES WHERE video_id = #{videoId} AND user_id = #{userId}
+    </select>
+
+    <select id="countLikes" resultType="int">
+        SELECT COUNT(*) FROM VIDEO_LIKES WHERE video_id = #{videoId}
+    </select>
+
+    <update id="updateFoodItemQuantity">
+        UPDATE RECOGNIZED_FOOD_ITEM SET quantity = #{quantity} WHERE id = #{id}
+    </update>
+
+    <update id="updateVideoUrl">
+        UPDATE VIDEOS SET video_url = #{videoUrl} WHERE id = #{id}
+    </update>
+
+</mapper>

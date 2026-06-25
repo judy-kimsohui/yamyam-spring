@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.ssafy.yamyam.domain.team.mapper.TeamMapper">
+
+    <insert id="insertTeam" parameterType="com.ssafy.yamyam.domain.team.model.Team" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO TEAMS (team_id, team_name, capacity, invite_code, team_goal, king_id)
+        VALUES (#{teamId}, #{teamName}, #{capacity}, #{inviteCode}, #{teamGoal}, #{kingId})
+    </insert>
+
+    <insert id="insertTeamMember" parameterType="com.ssafy.yamyam.domain.team.model.TeamMember" useGeneratedKeys="true" keyProperty="teamMemberId">
+        INSERT INTO TEAM_MEMBERS (team_id, user_id)
+        VALUES (#{teamId}, #{userId})
+    </insert>
+
+    <select id="findTeamByInviteCode" resultType="com.ssafy.yamyam.domain.team.model.Team">
+        SELECT
+            id,
+            team_id AS teamId,
+            team_name AS teamName,
+            capacity,
+            invite_code AS inviteCode,
+            team_goal AS teamGoal,
+            king_id AS kingId,
+            created_at AS createdAt,
+            updated_at AS updatedAt
+        FROM TEAMS
+        WHERE invite_code = #{inviteCode}
+        LIMIT 1
+    </select>
+
+    <select id="countTeamMembers" resultType="int">
+        SELECT COUNT(*)
+        FROM TEAM_MEMBERS
+        WHERE team_id = #{teamId}
+    </select>
+
+    <select id="existsTeamMember" resultType="int">
+        SELECT COUNT(*)
+        FROM TEAM_MEMBERS
+        WHERE team_id = #{teamId}
+          AND user_id = #{userId}
+    </select>
+
+    <resultMap id="TeamDetailResultMap" type="com.ssafy.yamyam.domain.team.dto.TeamDetailResponseDto">
+
+        <id property="teamInfo.id" column="team_pk_id"/>
+
+        <association property="teamInfo" javaType="com.ssafy.yamyam.domain.team.model.Team">
+            <id property="id" column="team_pk_id"/>
+            <result property="teamId" column="team_id"/>
+            <result property="teamName" column="team_name"/>
+            <result property="capacity" column="capacity"/>
+            <result property="inviteCode" column="invite_code"/>
+            <result property="teamGoal" column="team_goal"/>
+            <result property="kingId" column="king_id"/>
+            <result property="createdAt" column="team_created_at"/>
+            <result property="updatedAt" column="team_updated_at"/>
+        </association>
+
+        <association property="teamKing" javaType="com.ssafy.yamyam.domain.user.model.User">
+            <id property="id" column="king_pk_id"/>
+            <result property="userId" column="king_user_id"/>
+            <result property="nickName" column="king_nickname"/>
+            <result property="profileImg" column="king_profile_img"/>
+        </association>
+
+        <collection property="members" ofType="com.ssafy.yamyam.domain.user.model.User">
+            <id property="id" column="member_pk_id"/>
+            <result property="userId" column="member_user_id"/>
+            <result property="nickName" column="member_nickname"/>
+            <result property="profileImg" column="member_profile_img"/>
+        </collection>
+    </resultMap>
+
+    <select id="findTeamDetailById" resultMap="TeamDetailResultMap">
+        SELECT
+        t.id AS team_pk_id, t.team_id, t.team_name, t.capacity, t.invite_code, t.team_goal, t.king_id,
+        t.created_at AS team_created_at, t.updated_at AS team_updated_at,
+
+        k.id AS king_pk_id, k.user_id AS king_user_id, k.nick_name AS king_nickname, k.profile_img AS king_profile_img,
+
+        m.id AS member_pk_id, m.user_id AS member_user_id, m.nick_name AS member_nickname, m.profile_img AS member_profile_img
+        FROM TEAMS t
+        JOIN USERS k ON t.king_id = k.id
+        LEFT JOIN TEAM_MEMBERS tm ON t.id = tm.team_id
+        LEFT JOIN USERS m ON tm.user_id = m.id
+        WHERE t.id = #{id}
+    </select>
+
+
+    <select id="findTeamsByUserId" parameterType="long" resultType="com.ssafy.yamyam.domain.team.dto.TeamDto">
+        SELECT
+        t.id AS id,
+        t.team_id AS teamId,
+        t.invite_code AS inviteCode,
+        t.team_name AS name,
+        t.capacity AS capacity,
+        t.team_goal AS teamGoal,
+        -- 💡 필요하다면 현재 팀에 몇 명이 참여 중인지 서브쿼리로 동적 연산
+        (SELECT COUNT(*) FROM TEAM_MEMBERS tm2 WHERE tm2.team_id = t.id) AS members
+        FROM TEAMS t
+        INNER JOIN TEAM_MEMBERS tm ON t.id = tm.team_id
+        WHERE tm.user_id = #{userId}
+    </select>
+    
+    <select id="findTeamById" resultType="com.ssafy.yamyam.domain.team.model.Team">
+    SELECT * FROM TEAMS WHERE id = #{id}
+</select>
+
+<delete id="deleteTeamMember">
+    DELETE FROM TEAM_MEMBERS WHERE team_id = #{teamId} AND user_id = #{userId}
+</delete>
+
+<delete id="deleteAllTeamMembers">
+    DELETE FROM TEAM_MEMBERS WHERE team_id = #{teamId}
+</delete>
+
+<delete id="deleteTeam">
+    DELETE FROM TEAMS WHERE id = #{id}
+</delete>
+</mapper>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.yamyam.domain.user.mapper.UserMapper">
+
+    <insert id="insertUser" parameterType="com.ssafy.yamyam.domain.user.model.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO USERS (user_id, password, nick_name, profile_img, age, gender, height, weight, goal_weight, user_goal)
+        VALUES (#{userId}, #{password}, #{nickName}, #{profileImg}, #{age}, #{gender}, #{height}, #{weight}, #{goalWeight}, #{userGoal})
+    </insert>
+
+    <update id="updateUserProfile" parameterType="com.ssafy.yamyam.domain.user.model.User">
+        UPDATE USERS
+        SET
+            nick_name   = #{nickName},
+            profile_img = #{profileImg},
+            age         = #{age},
+            gender      = #{gender},
+            height      = #{height},
+            weight      = #{weight},
+            goal_weight = #{goalWeight},
+            user_goal   = #{userGoal}
+        WHERE id = #{id}
+    </update>
+
+    <resultMap id="UserResultMap" type="com.ssafy.yamyam.domain.user.model.User">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="password" column="password"/>
+        <result property="nickName" column="nick_name"/>
+        <result property="profileImg" column="profile_img"/>
+        <result property="age" column="age"/>
+        <result property="gender" column="gender" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="height" column="height"/>
+        <result property="weight" column="weight"/>
+        <result property="goalWeight" column="goal_weight"/>
+        <result property="userGoal" column="user_goal"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findByUserId" resultMap="UserResultMap">
+        SELECT * FROM USERS WHERE user_id = #{userId}
+    </select>
+
+    <select id="findById" resultMap="UserResultMap">
+        SELECT * FROM USERS WHERE id = #{id}
+    </select>
+
+</mapper>

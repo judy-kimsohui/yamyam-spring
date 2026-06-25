@@ -1,0 +1,23 @@
+type Query {
+    videos(teamId: ID, userId: ID, date: String!): [Video!]!
+}
+
+type Video {
+    id: ID!
+    userId: ID
+    uploaderNickName: String
+    teamId: ID
+    mealType: String
+    mealDate: String
+    videoUrl: String
+    description: String
+    calories: Float
+    carbs: Float
+    protein: Float
+    fat: Float
+    aiComment: String
+    status: String    # 🌟 이 줄을 추가하여 프론트엔드로 나가는 문을 열어줍니다!
+    likeCount: Int
+    liked: Boolean
+    createdAt: String
+}
