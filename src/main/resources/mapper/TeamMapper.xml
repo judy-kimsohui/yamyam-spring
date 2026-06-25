@@ -104,4 +104,20 @@
         INNER JOIN TEAM_MEMBERS tm ON t.id = tm.team_id
         WHERE tm.user_id = #{userId}
     </select>
+    
+    <select id="findTeamById" resultType="com.ssafy.yamyam.domain.team.model.Team">
+    SELECT * FROM TEAMS WHERE id = #{id}
+</select>
+
+<delete id="deleteTeamMember">
+    DELETE FROM TEAM_MEMBERS WHERE team_id = #{teamId} AND user_id = #{userId}
+</delete>
+
+<delete id="deleteAllTeamMembers">
+    DELETE FROM TEAM_MEMBERS WHERE team_id = #{teamId}
+</delete>
+
+<delete id="deleteTeam">
+    DELETE FROM TEAMS WHERE id = #{id}
+</delete>
 </mapper>

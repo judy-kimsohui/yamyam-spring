@@ -88,6 +88,56 @@ public class TeamController {
         TeamDetailResponseDto teamDetail = teamService.getTeamDetail(id);
         return ResponseEntity.ok(teamDetail);
     }
+    
+    @DeleteMapping("/{id}/leave")
+    public ResponseEntity<?> leaveTeam(@PathVariable("id") Long teamId, HttpServletRequest request) {
+        Long loginUserKey = (Long) request.getAttribute("loginUserKey");
+        if (loginUserKey == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("인증되지 않은 사용자입니다.");
+
+        try {
+            teamService.leaveTeam(loginUserKey, teamId);
+            return ResponseEntity.ok("팀을 성공적으로 나갔습니다.");
+        } catch (IllegalArgumentException | SecurityException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
+        }
+    }
+
+    // 2. 팀 삭제하기 (방장 전용)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteTeam(@PathVariable("id") Long teamId, HttpServletRequest request) {
+        Long loginUserKey = (Long) request.getAttribute("loginUserKey");
+        if (loginUserKey == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("인증되지 않은 사용자입니다.");
+
+        try {
+            teamService.deleteTeam(loginUserKey, teamId);
+            return ResponseEntity.ok("팀이 성공적으로 삭제되었습니다.");
+        } catch (IllegalArgumentException | SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
+        }
+    }
+
+    // 3. 특정 팀원 추방하기 (방장 전용)
+    @DeleteMapping("/{id}/members/{userId}")
+    public ResponseEntity<?> kickMember(
+            @PathVariable("id") Long teamId,
+            @PathVariable("userId") Long targetUserId,
+            HttpServletRequest request) {
+        Long loginUserKey = (Long) request.getAttribute("loginUserKey");
+        if (loginUserKey == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("인증되지 않은 사용자입니다.");
+
+        try {
+            teamService.kickMember(loginUserKey, teamId, targetUserId);
+            return ResponseEntity.ok("팀원을 성공적으로 추방했습니다.");
+        } catch (IllegalArgumentException | SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
+        }
+    }
 
 
 }

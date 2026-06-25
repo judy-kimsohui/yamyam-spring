@@ -46,4 +46,6 @@ public interface VideoMapper {
     List<VideoDto> findTeamVideos(Long teamId, String date, Long loginUserId);
 
     void updateVideoUrl(@Param("id") Long id, @Param("videoUrl") String videoUrl);
+
+    
 }
