@@ -60,6 +60,17 @@ public class LogController {
         }
     }
 
+    @GetMapping("/trend")
+    public ResponseEntity<?> getTrend(@RequestParam(defaultValue = "week") String period,
+                                      @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authHeader) {
+        try {
+            Long userId = extractUserId(authHeader);
+            return ResponseEntity.ok(logService.getTrendData(userId, period));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("트렌드 조회 실패: " + e.getMessage());
+        }
+    }
+
     private Long extractUserId(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new IllegalArgumentException("인증 토큰이 필요합니다.");
