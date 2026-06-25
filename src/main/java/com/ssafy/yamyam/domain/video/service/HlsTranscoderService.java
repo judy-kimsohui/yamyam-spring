@@ -73,6 +73,7 @@ public class HlsTranscoderService {
                             .bucket(bucket)
                             .key(hlsKey)
                             .contentType(contentType)
+                            .cacheControl("public, max-age=2592000")
                             .build(),
                         file
                     );

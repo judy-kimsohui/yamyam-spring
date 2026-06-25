@@ -53,7 +53,15 @@ server {
     # 영상 파일 프록시
     location /videos/ {
         proxy_pass http://localhost:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Range $http_range;
+        proxy_set_header If-Range $http_if_range;
+        proxy_buffering on;
+        proxy_request_buffering on;
         proxy_read_timeout 120s;
+        add_header Cache-Control "public, max-age=2592000" always;
+        add_header Accept-Ranges bytes always;
     }
 
     # WebSocket 프록시
