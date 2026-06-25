@@ -15,6 +15,9 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 
 @Component
@@ -28,6 +31,11 @@ public class S3VideoStorage implements VideoStorage {
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
 
+    private static final Duration DOWNLOAD_URL_TTL = Duration.ofHours(1);
+    private static final Duration DOWNLOAD_URL_REFRESH_MARGIN = Duration.ofMinutes(5);
+
+    private final Map<String, CachedUrl> downloadUrlCache = new ConcurrentHashMap<>();
+
     @Override
     public String save(MultipartFile file) {
         String key = "videos/" + UUID.randomUUID() + getExt(file.getOriginalFilename());
@@ -39,6 +47,7 @@ public class S3VideoStorage implements VideoStorage {
                             .bucket(bucket)
                             .key(key)
                             .contentType(contentType)
+                            .cacheControl("public, max-age=2592000")
                             .build(),
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize())
             );
@@ -54,12 +63,20 @@ public class S3VideoStorage implements VideoStorage {
         // 기존 로컬 경로(/videos/...)나 이미 완전한 URL은 그대로 반환
         if (stored.startsWith("/") || stored.startsWith("http")) return stored;
 
-        // S3 key -> presigned URL (1시간 유효)
+        CachedUrl cached = downloadUrlCache.get(stored);
+        if (cached != null && cached.expiresAt().isAfter(Instant.now().plus(DOWNLOAD_URL_REFRESH_MARGIN))) {
+            return cached.url();
+        }
+
+        // S3 key -> presigned URL (1시간 유효). 같은 key는 만료 직전까지 재사용해서
+        // 프론트 폴링 중 video src가 계속 바뀌지 않게 한다.
         PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(r ->
-                r.signatureDuration(Duration.ofHours(1))
+                r.signatureDuration(DOWNLOAD_URL_TTL)
                         .getObjectRequest(g -> g.bucket(bucket).key(stored))
         );
-        return presigned.url().toString();
+        String url = presigned.url().toString();
+        downloadUrlCache.put(stored, new CachedUrl(url, Instant.now().plus(DOWNLOAD_URL_TTL)));
+        return url;
     }
 
     @Override
@@ -94,4 +111,6 @@ public class S3VideoStorage implements VideoStorage {
             default -> ".mp4";
         };
     }
+
+    private record CachedUrl(String url, Instant expiresAt) {}
 }
